@@ -9,8 +9,8 @@ import (
 	"github.com/VideoCoin/cloud-api/rpc"
 	"github.com/VideoCoin/cloud-api/users/v1"
 	"github.com/VideoCoin/cloud-api/validator"
+	"github.com/VideoCoin/cloud-pkg/grpcutil"
 	"github.com/VideoCoin/cloud-users/auth"
-	"github.com/VideoCoin/cloud-users/pkg/grpcutil"
 	jwt "github.com/dgrijalva/jwt-go"
 	protoempty "github.com/golang/protobuf/ptypes/empty"
 	"github.com/jinzhu/copier"
@@ -118,13 +118,13 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 	resp.Token = user.Token
 
 	if s.accountsEnabled {
-		accReq := &accountsv1.CreateAccountRequest{OwnerID: user.Id}
-		_, err := s.accounts.CreateAccount(ctx, accReq)
+		accReq := &accountsv1.AccountRequest{OwnerID: user.Id}
+		_, err := s.accounts.Create(ctx, accReq)
 		if err != nil {
-			s.logger.Warningf("failed to create account user: %s", err)
+			s.logger.Warningf("failed to create user: %s", err)
 			billErr := s.eb.CreateUserAccount(accReq)
 			if billErr != nil {
-				s.logger.Errorf("failed to create account user via eventbus: %s", billErr)
+				s.logger.Errorf("failed to create user via eventbus: %s", billErr)
 			}
 		}
 	}
@@ -193,7 +193,7 @@ func (s *RpcServer) GetUserProfile(ctx context.Context, req *protoempty.Empty) (
 	copier.Copy(userProfile, user)
 
 	if s.accountsEnabled {
-		accountProfile, err := s.accounts.GetAccount(ctx, &accountsv1.AccountRequest{OwnerID: user.Id})
+		accountProfile, err := s.accounts.Get(ctx, &accountsv1.AccountRequest{OwnerID: user.Id})
 		if err != nil {
 			s.logger.Errorf("failed to get account profile: %s", err)
 		} else {
@@ -215,7 +215,7 @@ func (s *RpcServer) GetUserById(ctx context.Context, req *v1.UserRequest) (*v1.U
 	copier.Copy(userProfile, user)
 
 	if s.accountsEnabled {
-		accountProfile, err := s.accounts.GetAccount(ctx, &accountsv1.AccountRequest{OwnerID: user.Id})
+		accountProfile, err := s.accounts.Get(ctx, &accountsv1.AccountRequest{OwnerID: user.Id})
 		if err != nil {
 			s.logger.Errorf("failed to get account profile: %s", err)
 		} else {

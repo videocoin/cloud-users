@@ -1,7 +1,7 @@
 GOOS?=linux
 GOARCH?=amd64
 
-NAME=vc-user
+NAME=users
 VERSION=$$(git describe --abbrev=0)-$$(git rev-parse --short HEAD)
 
 CHARTS=loggly

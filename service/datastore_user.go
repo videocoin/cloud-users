@@ -7,8 +7,8 @@ import (
 
 	"github.com/AlekSi/pointer"
 	"github.com/VideoCoin/cloud-api/users/v1"
-	"github.com/VideoCoin/cloud-users/pkg/dbutil"
-	"github.com/VideoCoin/cloud-users/pkg/uuid4"
+	"github.com/VideoCoin/cloud-pkg/dbutil"
+	"github.com/VideoCoin/cloud-pkg/uuid4"
 	"github.com/jinzhu/gorm"
 	"golang.org/x/crypto/bcrypt"
 )

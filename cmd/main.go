@@ -5,14 +5,14 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/VideoCoin/cloud-users/pkg/logger"
+	"github.com/VideoCoin/cloud-pkg/logger"
 	"github.com/VideoCoin/cloud-users/service"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/sirupsen/logrus"
 )
 
 var (
-	ServiceName string = "vc_user"
+	ServiceName string = "vc_users"
 	Version     string = "dev"
 )
 

@@ -2,7 +2,7 @@ package service
 
 import (
 	accountsv1 "github.com/VideoCoin/cloud-api/accounts/v1"
-	"github.com/VideoCoin/cloud-users/pkg/mqmux"
+	"github.com/VideoCoin/cloud-pkg/mqmux"
 	"github.com/sirupsen/logrus"
 )
 
@@ -49,6 +49,6 @@ func (e *EventBus) registerConsumers() error {
 	return nil
 }
 
-func (e *EventBus) CreateUserAccount(req *accountsv1.CreateAccountRequest) error {
+func (e *EventBus) CreateUserAccount(req *accountsv1.AccountRequest) error {
 	return e.mq.Publish("account/create", req)
 }
