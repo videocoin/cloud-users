@@ -6,11 +6,10 @@ import (
 	"time"
 
 	"github.com/AlekSi/pointer"
-	"github.com/VideoCoin/cloud-api/users/v1"
+	v1 "github.com/VideoCoin/cloud-api/users/v1"
 	"github.com/VideoCoin/cloud-pkg/dbutil"
 	"github.com/VideoCoin/cloud-pkg/uuid4"
 	"github.com/jinzhu/gorm"
-	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -27,7 +26,7 @@ func NewUserDatastore(db *gorm.DB) (*UserDatastore, error) {
 	return &UserDatastore{db: db}, nil
 }
 
-func (ds *UserDatastore) GetList() ([]*v1.User, error) {
+func (ds *UserDatastore) List() ([]*v1.User, error) {
 	users := []*v1.User{}
 
 	err := ds.db.Find(&users).Error
@@ -38,7 +37,7 @@ func (ds *UserDatastore) GetList() ([]*v1.User, error) {
 	return users, nil
 }
 
-func (ds *UserDatastore) GetByID(id string) (*v1.User, error) {
+func (ds *UserDatastore) Get(id string) (*v1.User, error) {
 	user := &v1.User{}
 
 	err := ds.db.Where("id = ?", id).First(user).Error
@@ -83,7 +82,7 @@ func (ds *UserDatastore) GetByVerificationCode(code string) (*v1.User, error) {
 	return user, nil
 }
 
-func (ds *UserDatastore) Register(email, password string) (*v1.User, error) {
+func (ds *UserDatastore) Register(email, name, password string) (*v1.User, error) {
 	tx := ds.db.Begin()
 
 	user := &v1.User{}
@@ -104,11 +103,12 @@ func (ds *UserDatastore) Register(email, password string) (*v1.User, error) {
 		return nil, err
 	}
 
-	passwordHash, _ := HashPassword(password)
+	passwordHash, _ := hashPassword(password)
 
 	user = &v1.User{
 		Id:        id,
 		Email:     email,
+		Name:      name,
 		Password:  passwordHash,
 		CreatedAt: pointer.ToTime(time.Now()),
 	}
@@ -128,6 +128,23 @@ func (ds *UserDatastore) Register(email, password string) (*v1.User, error) {
 	tx.Commit()
 
 	return user, nil
+}
+
+func (ds *UserDatastore) ResetPassword(user *v1.User, password string) error {
+	passwordHash, _ := hashPassword(password)
+
+	user.Password = passwordHash
+
+	updates := map[string]interface{}{
+		"password": user.Password,
+	}
+
+	err := ds.db.Model(user).Updates(updates).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (ds *UserDatastore) UpdateAuthToken(user *v1.User, token string) error {
@@ -158,14 +175,4 @@ func (ds *UserDatastore) ResetAuthToken(user *v1.User) error {
 	}
 
 	return nil
-}
-
-func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
-}
-
-func CheckPasswordHash(password, hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	return err == nil
 }

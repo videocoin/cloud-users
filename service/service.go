@@ -21,16 +21,14 @@ func NewService(cfg *Config) (*Service, error) {
 
 	var accounts accountsv1.AccountServiceClient
 
-	if cfg.AccountsEnabled {
-		alogger := cfg.Logger.WithField("system", "accountcli")
-		aGrpcDialOpts := grpcutil.ClientDialOptsWithRetry(alogger)
-		accountsConn, err := grpc.Dial(cfg.AccountsRPCAddr, aGrpcDialOpts...)
-		if err != nil {
-			return nil, err
-		}
-
-		accounts = accountsv1.NewAccountServiceClient(accountsConn)
+	alogger := cfg.Logger.WithField("system", "accountcli")
+	aGrpcDialOpts := grpcutil.ClientDialOptsWithRetry(alogger)
+	accountsConn, err := grpc.Dial(cfg.AccountsRPCAddr, aGrpcDialOpts...)
+	if err != nil {
+		return nil, err
 	}
+
+	accounts = accountsv1.NewAccountServiceClient(accountsConn)
 
 	mq, err := mqmux.NewWorkerMux(cfg.MQURI, cfg.Name)
 	if err != nil {
@@ -45,13 +43,12 @@ func NewService(cfg *Config) (*Service, error) {
 	}
 
 	rpcConfig := &RpcServerOptions{
-		Addr:            cfg.RPCAddr,
-		Secret:          cfg.Secret,
-		Logger:          cfg.Logger,
-		DS:              ds,
-		EB:              eb,
-		Accounts:        accounts,
-		AccountsEnabled: cfg.AccountsEnabled,
+		Addr:     cfg.RPCAddr,
+		Secret:   cfg.Secret,
+		Logger:   cfg.Logger,
+		DS:       ds,
+		EB:       eb,
+		Accounts: accounts,
 	}
 
 	rpc, err := NewRpcServer(rpcConfig)
