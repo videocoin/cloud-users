@@ -55,7 +55,7 @@ func (e *EventBus) registerConsumers() error {
 	return nil
 }
 
-func (e *EventBus) CreateUserAccount(req *accountsv1.CreateAccountRequest) error {
+func (e *EventBus) CreateUserAccount(req *accountsv1.AccountRequest) error {
 	return e.mq.Publish("account/create", req)
 }
 

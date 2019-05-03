@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	ServiceName string = "vc_users"
+	ServiceName string = "users"
 	Version     string = "dev"
 )
 
@@ -20,6 +20,9 @@ func main() {
 	logger.Init(ServiceName, Version)
 
 	log := logrus.NewEntry(logrus.New())
+
+	log.Logger.SetReportCaller(true)
+
 	log = logrus.WithFields(logrus.Fields{
 		"service": ServiceName,
 		"version": Version,

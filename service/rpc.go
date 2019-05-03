@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"time"
 
@@ -88,7 +89,20 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 
 	err := req.Validate()
 	if err != nil {
+		s.logger.Error(err)
 		return nil, err
+	}
+
+	if req.Password != req.ConfirmPassword {
+		respErr := &rpc.MultiValidationError{
+			Errors: []*rpc.ValidationError{
+				&rpc.ValidationError{
+					Field:   "password",
+					Message: "Passwords do not match",
+				},
+			},
+		}
+		return resp, rpc.NewRpcValidationError(respErr)
 	}
 
 	user, err := s.ds.User.Register(req.Email, req.Name, req.Password)
@@ -124,7 +138,7 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 
 	resp.Token = user.Token
 
-	accReq := &accountsv1.CreateAccountRequest{OwnerID: user.Id}
+	accReq := &accountsv1.AccountRequest{OwnerID: user.Id}
 	_, err = s.accounts.Create(ctx, accReq)
 	if err != nil {
 		s.logger.Warningf("failed to create account: %s", err)
@@ -139,18 +153,29 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 		s.logger.WithField("faield to send welcome email to user id", user.Id).Error(err)
 	}
 
+	err = s.notifications.SendTestPush(ctx, user)
+	if err != nil {
+		s.logger.WithField("faield to send push to user id", user.Id).Error(err)
+	}
+
 	return resp, nil
 }
 
 func (s *RpcServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.LoginUserResponse, error) {
 	err := req.Validate()
 	if err != nil {
+		s.logger.Error(err)
 		return nil, err
 	}
 
 	user, err := s.ds.User.GetByEmail(req.Email)
 	if err != nil {
-		return nil, rpc.ErrRpcUnauthenticated
+		s.logger.Errorf("failed to get user: %s", err)
+		if err == ErrUserNotFound {
+			return nil, rpc.ErrRpcNotFound
+		}
+
+		return nil, rpc.ErrRpcInternal
 	}
 
 	if !checkPasswordHash(req.Password, user.Password) {
@@ -177,10 +202,9 @@ func (s *RpcServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.Lo
 }
 
 func (s *RpcServer) Logout(ctx context.Context, req *protoempty.Empty) (*protoempty.Empty, error) {
-	empty := &protoempty.Empty{}
-
 	user, _, err := s.authenticate(ctx)
 	if err != nil {
+		s.logger.Error(err)
 		return nil, err
 	}
 
@@ -190,12 +214,10 @@ func (s *RpcServer) Logout(ctx context.Context, req *protoempty.Empty) (*protoem
 		return nil, rpc.ErrRpcInternal
 	}
 
-	return empty, nil
+	return &protoempty.Empty{}, nil
 }
 
 func (s *RpcServer) StartRecovery(ctx context.Context, req *v1.StartRecoveryUserRequest) (*protoempty.Empty, error) {
-	empty := &protoempty.Empty{}
-
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -203,24 +225,25 @@ func (s *RpcServer) StartRecovery(ctx context.Context, req *v1.StartRecoveryUser
 
 	user, err := s.ds.User.GetByEmail(req.Email)
 	if err != nil {
-		return nil, rpc.ErrRpcUnauthenticated
+		s.logger.Errorf("failed to get user: %s", err)
+		if err == ErrUserNotFound {
+			return nil, rpc.ErrRpcNotFound
+		}
+
+		return nil, rpc.ErrRpcInternal
 	}
 
 	token := newRecoveryToken(req.Email, 12*time.Hour, []byte(user.Password), []byte(s.recoverySecret))
-
-	s.logger.Infof("received token: %s", token)
 
 	err = s.notifications.SendEmailRecovery(ctx, user, token)
 	if err != nil {
 		s.logger.WithField("faield to send recovery email to user id", user.Id).Error(err)
 	}
 
-	return empty, nil
+	return &protoempty.Empty{}, nil
 }
 
 func (s *RpcServer) Recover(ctx context.Context, req *v1.RecoverUserRequest) (*protoempty.Empty, error) {
-	empty := &protoempty.Empty{}
-
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -228,7 +251,12 @@ func (s *RpcServer) Recover(ctx context.Context, req *v1.RecoverUserRequest) (*p
 
 	user, err := verifyRecoveryToken(req.Token, s.ds.User.GetByEmail, []byte(s.recoverySecret))
 	if err != nil {
-		return nil, rpc.ErrRpcUnauthenticated
+		s.logger.Errorf("failed to get user: %s", err)
+		if err == ErrUserNotFound {
+			return nil, rpc.ErrRpcNotFound
+		}
+
+		return nil, rpc.ErrRpcInternal
 	}
 
 	err = s.ds.User.ResetPassword(user, req.Password)
@@ -236,12 +264,11 @@ func (s *RpcServer) Recover(ctx context.Context, req *v1.RecoverUserRequest) (*p
 		return nil, rpc.ErrRpcInternal
 	}
 
-	return empty, nil
+	return &protoempty.Empty{}, nil
 }
 
 func (s *RpcServer) ResetPassword(ctx context.Context, req *v1.ResetPasswordUserRequest) (*protoempty.Empty, error) {
-	empty := &protoempty.Empty{}
-
+	fmt.Printf("received request 2: %v", req)
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -257,11 +284,11 @@ func (s *RpcServer) ResetPassword(ctx context.Context, req *v1.ResetPasswordUser
 		return nil, rpc.ErrRpcInternal
 	}
 
-	return empty, nil
+	return &protoempty.Empty{}, nil
 }
 
 func (s *RpcServer) Get(ctx context.Context, req *protoempty.Empty) (*v1.UserProfile, error) {
-	user, _, err := s.authenticate(ctx)
+	user, ctx, err := s.authenticate(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -269,10 +296,10 @@ func (s *RpcServer) Get(ctx context.Context, req *protoempty.Empty) (*v1.UserPro
 	userProfile := new(v1.UserProfile)
 	err = copier.Copy(userProfile, user)
 	if err != nil {
-		return nil, err
+		return nil, rpc.ErrRpcInternal
 	}
 
-	accountProfile, err := s.accounts.Get(ctx, req)
+	accountProfile, err := s.accounts.Get(ctx, &accountsv1.AccountRequest{OwnerID: user.Id})
 	if err != nil {
 		s.logger.Errorf("failed to get account profile: %s", err)
 	} else {
@@ -282,20 +309,39 @@ func (s *RpcServer) Get(ctx context.Context, req *protoempty.Empty) (*v1.UserPro
 	return userProfile, nil
 }
 
-func (s *RpcServer) List(ctx context.Context, req *v1.ListRequest) (*v1.ListResponse, error) {
-	resp := &v1.ListResponse{
-		Items: []*v1.User{},
-	}
-
-	users, err := s.ds.User.List()
+func (s *RpcServer) Whitelist(ctx context.Context, req *protoempty.Empty) (*v1.WhitelistResponse, error) {
+	accounts, err := s.accounts.List(ctx, new(protoempty.Empty))
 	if err != nil {
-		s.logger.Error(err)
-		return nil, rpc.ErrRpcInternal
+		s.logger.Errorf("failed to get whitelist: %s", err)
+		return nil, err
 	}
 
-	resp.Items = users
+	items := make([]string, 0)
 
-	return resp, nil
+	for _, a := range accounts.Items {
+		items = append(items, a.Address)
+	}
+
+	return &v1.WhitelistResponse{
+		Items: items,
+	}, nil
+}
+
+func (s *RpcServer) LookupByAddress(ctx context.Context, req *v1.LookupByAddressRequest) (*protoempty.Empty, error) {
+	err := req.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	aReq := &accountsv1.Address{Address: req.Address}
+	_, err = s.accounts.GetByAddress(ctx, aReq)
+	if err != nil {
+		s.logger.Errorf("failed to look up address: %s", err)
+		return nil, rpc.ErrRpcNotFound
+
+	}
+
+	return new(protoempty.Empty), nil
 }
 
 func (s *RpcServer) createToken(ctx context.Context, user *v1.User) (string, error) {

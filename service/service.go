@@ -19,8 +19,6 @@ func NewService(cfg *Config) (*Service, error) {
 		return nil, err
 	}
 
-	var accounts accountsv1.AccountServiceClient
-
 	alogger := cfg.Logger.WithField("system", "accountcli")
 	aGrpcDialOpts := grpcutil.ClientDialOptsWithRetry(alogger)
 	accountsConn, err := grpc.Dial(cfg.AccountsRPCAddr, aGrpcDialOpts...)
@@ -28,7 +26,7 @@ func NewService(cfg *Config) (*Service, error) {
 		return nil, err
 	}
 
-	accounts = accountsv1.NewAccountServiceClient(accountsConn)
+	accounts := accountsv1.NewAccountServiceClient(accountsConn)
 
 	mq, err := mqmux.NewWorkerMux(cfg.MQURI, cfg.Name)
 	if err != nil {

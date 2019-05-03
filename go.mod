@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/AlekSi/pointer v1.0.0
-	github.com/VideoCoin/cloud-api v0.0.0-20190415043406-de7388d1f113
+	github.com/VideoCoin/cloud-api v0.0.0-20190422202534-f3b974bd6ba0
 	github.com/VideoCoin/cloud-pkg v0.0.0-20190414194354-81fc89d29c9d
 	github.com/certifi/gocertifi v0.0.0-20190410005359-59a85de7f35e // indirect
 	github.com/dchest/authcookie v0.0.0-20120917135355-fbdef6e99866
@@ -35,4 +35,4 @@ require (
 	gopkg.in/go-playground/validator.v9 v9.28.0 // indirect
 )
 
-replace github.com/VideoCoin/cloud-api => ../cloud-api
+// replace github.com/VideoCoin/cloud-api => ../cloud-api
