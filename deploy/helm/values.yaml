@@ -1,4 +1,4 @@
-replicasCount: 3
+replicasCount: 1
 maxUnavailableCount: 0
 
 image:
@@ -21,16 +21,17 @@ autoscaler:
 
 resources:
   limits:
-    cpu: 200m
-    memory: 200Mi
+    cpu: 1000m
+    memory: 512Mi
   requests:
-    cpu: 200m
-    memory: 200Mi
+    cpu: 1000m
+    memory: 512Mi
 
 secrets:
   dbUri: ""
   mqUri: ""
   secret: ""
   recoverySecret: ""
+  centSecret: ""
   sentryDsn: ""
 
