@@ -41,12 +41,14 @@ func NewService(cfg *Config) (*Service, error) {
 	}
 
 	rpcConfig := &RpcServerOptions{
-		Addr:     cfg.RPCAddr,
-		Secret:   cfg.Secret,
-		Logger:   cfg.Logger,
-		DS:       ds,
-		EB:       eb,
-		Accounts: accounts,
+		Addr:           cfg.RPCAddr,
+		Secret:         cfg.Secret,
+		RecoverySecret: cfg.RecoverySecret,
+		CentSecret:     cfg.CentSecret,
+		Logger:         cfg.Logger,
+		DS:             ds,
+		EB:             eb,
+		Accounts:       accounts,
 	}
 
 	rpc, err := NewRpcServer(rpcConfig)

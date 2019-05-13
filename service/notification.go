@@ -45,10 +45,12 @@ func (c *NotificationClient) SendEmailWelcome(ctx context.Context, user *v1.User
 }
 
 func (c *NotificationClient) SendEmailRecovery(ctx context.Context, user *v1.User, token string) error {
+	md := metautils.ExtractIncoming(ctx)
+
 	params := map[string]string{
 		"to":     user.Email,
-		"domain": "videocoin.network",
 		"token":  token,
+		"domain": md.Get("x-forwarded-host"),
 	}
 
 	notification := &notificationv1.Notification{

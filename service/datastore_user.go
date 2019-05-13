@@ -176,3 +176,20 @@ func (ds *UserDatastore) ResetAuthToken(user *v1.User) error {
 
 	return nil
 }
+
+func (ds *UserDatastore) Activate(userID string) error {
+	user := &v1.User{
+		Id: userID,
+	}
+
+	updates := map[string]interface{}{
+		"activated": true,
+	}
+
+	err := ds.db.Model(user).Updates(updates).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

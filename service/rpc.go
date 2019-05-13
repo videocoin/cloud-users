@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"time"
 
@@ -23,23 +22,28 @@ type RpcServerOptions struct {
 	Addr           string
 	Secret         string
 	RecoverySecret string
-	Logger         *logrus.Entry
-	DS             *Datastore
-	Accounts       accountsv1.AccountServiceClient
-	EB             *EventBus
+	CentSecret     string
+
+	Logger   *logrus.Entry
+	DS       *Datastore
+	Accounts accountsv1.AccountServiceClient
+	EB       *EventBus
 }
 
 type RpcServer struct {
 	addr           string
 	secret         string
 	recoverySecret string
-	grpc           *grpc.Server
-	listen         net.Listener
-	logger         *logrus.Entry
-	ds             *Datastore
-	eb             *EventBus
-	accounts       accountsv1.AccountServiceClient
-	notifications  *NotificationClient
+	centSecret     string
+
+	grpc          *grpc.Server
+	listen        net.Listener
+	logger        *logrus.Entry
+	ds            *Datastore
+	eb            *EventBus
+	accounts      accountsv1.AccountServiceClient
+	notifications *NotificationClient
+	validator     *requestValidator
 }
 
 func NewRpcServer(opts *RpcServerOptions) (*RpcServer, error) {
@@ -58,15 +62,18 @@ func NewRpcServer(opts *RpcServerOptions) (*RpcServer, error) {
 	}
 
 	rpcServer := &RpcServer{
-		addr:          opts.Addr,
-		secret:        opts.Secret,
-		grpc:          grpcServer,
-		listen:        listen,
-		logger:        opts.Logger,
-		ds:            opts.DS,
-		eb:            opts.EB,
-		accounts:      opts.Accounts,
-		notifications: nc,
+		addr:           opts.Addr,
+		secret:         opts.Secret,
+		recoverySecret: opts.RecoverySecret,
+		centSecret:     opts.CentSecret,
+		grpc:           grpcServer,
+		listen:         listen,
+		logger:         opts.Logger,
+		ds:             opts.DS,
+		eb:             opts.EB,
+		accounts:       opts.Accounts,
+		notifications:  nc,
+		validator:      newRequestValidator(),
 	}
 
 	v1.RegisterUserServiceServer(grpcServer, rpcServer)
@@ -87,22 +94,10 @@ func (s *RpcServer) Health(ctx context.Context, req *protoempty.Empty) (*rpc.Hea
 func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.LoginUserResponse, error) {
 	resp := new(v1.LoginUserResponse)
 
-	err := req.Validate()
-	if err != nil {
-		s.logger.Error(err)
-		return nil, err
-	}
-
-	if req.Password != req.ConfirmPassword {
-		respErr := &rpc.MultiValidationError{
-			Errors: []*rpc.ValidationError{
-				&rpc.ValidationError{
-					Field:   "password",
-					Message: "Passwords do not match",
-				},
-			},
-		}
-		return resp, rpc.NewRpcValidationError(respErr)
+	verr := s.validator.validate(req)
+	if verr != nil {
+		s.logger.Error(verr)
+		return nil, rpc.NewRpcValidationError(verr)
 	}
 
 	user, err := s.ds.User.Register(req.Email, req.Name, req.Password)
@@ -138,41 +133,43 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 
 	resp.Token = user.Token
 
-	accReq := &accountsv1.AccountRequest{OwnerID: user.Id}
-	_, err = s.accounts.Create(ctx, accReq)
+	centToken, err := s.createCentToken(ctx, user)
 	if err != nil {
-		s.logger.Warningf("failed to create account: %s", err)
-		accErr := s.eb.CreateUserAccount(accReq)
-		if accErr != nil {
-			s.logger.Errorf("failed to create account via eventbus: %s", accErr)
-		}
+		s.logger.Error(err)
 	}
+
+	resp.CentToken = centToken
+
+	accReq := &accountsv1.AccountRequest{OwnerID: user.Id}
+	// _, err = s.accounts.Create(context.Background(), accReq)
+	// if err != nil {
+	//s.logger.Warningf("failed to create account: %s", err)
+	accErr := s.eb.CreateUserAccount(accReq)
+	if accErr != nil {
+		s.logger.Errorf("failed to create account via eventbus: %s", accErr)
+	}
+	// }
 
 	err = s.notifications.SendEmailWelcome(ctx, user)
 	if err != nil {
-		s.logger.WithField("faield to send welcome email to user id", user.Id).Error(err)
-	}
-
-	err = s.notifications.SendTestPush(ctx, user)
-	if err != nil {
-		s.logger.WithField("faield to send push to user id", user.Id).Error(err)
+		s.logger.WithField("failed to send welcome email to user id", user.Id).Error(err)
 	}
 
 	return resp, nil
 }
 
 func (s *RpcServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.LoginUserResponse, error) {
-	err := req.Validate()
-	if err != nil {
-		s.logger.Error(err)
-		return nil, err
+	verr := s.validator.validate(req)
+	if verr != nil {
+		s.logger.Error(verr)
+		return nil, rpc.NewRpcValidationError(verr)
 	}
 
 	user, err := s.ds.User.GetByEmail(req.Email)
 	if err != nil {
 		s.logger.Errorf("failed to get user: %s", err)
 		if err == ErrUserNotFound {
-			return nil, rpc.ErrRpcNotFound
+			return nil, rpc.ErrRpcUnauthenticated
 		}
 
 		return nil, rpc.ErrRpcInternal
@@ -194,8 +191,14 @@ func (s *RpcServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.Lo
 		return nil, rpc.ErrRpcInternal
 	}
 
+	centToken, err := s.createCentToken(ctx, user)
+	if err != nil {
+		s.logger.Error(err)
+	}
+
 	resp := &v1.LoginUserResponse{
-		Token: user.Token,
+		Token:     user.Token,
+		CentToken: centToken,
 	}
 
 	return resp, nil
@@ -218,16 +221,17 @@ func (s *RpcServer) Logout(ctx context.Context, req *protoempty.Empty) (*protoem
 }
 
 func (s *RpcServer) StartRecovery(ctx context.Context, req *v1.StartRecoveryUserRequest) (*protoempty.Empty, error) {
-	err := req.Validate()
-	if err != nil {
-		return nil, err
+	verr := s.validator.validate(req)
+	if verr != nil {
+		s.logger.Error(verr)
+		return nil, rpc.NewRpcValidationError(verr)
 	}
 
 	user, err := s.ds.User.GetByEmail(req.Email)
 	if err != nil {
 		s.logger.Errorf("failed to get user: %s", err)
 		if err == ErrUserNotFound {
-			return nil, rpc.ErrRpcNotFound
+			return nil, rpc.ErrRpcBadRequest
 		}
 
 		return nil, rpc.ErrRpcInternal
@@ -237,23 +241,24 @@ func (s *RpcServer) StartRecovery(ctx context.Context, req *v1.StartRecoveryUser
 
 	err = s.notifications.SendEmailRecovery(ctx, user, token)
 	if err != nil {
-		s.logger.WithField("faield to send recovery email to user id", user.Id).Error(err)
+		s.logger.WithField("failed to send recovery email to user id", user.Id).Error(err)
 	}
 
 	return &protoempty.Empty{}, nil
 }
 
 func (s *RpcServer) Recover(ctx context.Context, req *v1.RecoverUserRequest) (*protoempty.Empty, error) {
-	err := req.Validate()
-	if err != nil {
-		return nil, err
+	verr := s.validator.validate(req)
+	if verr != nil {
+		s.logger.Error(verr)
+		return nil, rpc.NewRpcValidationError(verr)
 	}
 
 	user, err := verifyRecoveryToken(req.Token, s.ds.User.GetByEmail, []byte(s.recoverySecret))
 	if err != nil {
 		s.logger.Errorf("failed to get user: %s", err)
 		if err == ErrUserNotFound {
-			return nil, rpc.ErrRpcNotFound
+			return nil, rpc.ErrRpcBadRequest
 		}
 
 		return nil, rpc.ErrRpcInternal
@@ -268,12 +273,6 @@ func (s *RpcServer) Recover(ctx context.Context, req *v1.RecoverUserRequest) (*p
 }
 
 func (s *RpcServer) ResetPassword(ctx context.Context, req *v1.ResetPasswordUserRequest) (*protoempty.Empty, error) {
-	fmt.Printf("received request 2: %v", req)
-	err := req.Validate()
-	if err != nil {
-		return nil, err
-	}
-
 	user, _, err := s.authenticate(ctx)
 	if err != nil {
 		return nil, err
@@ -306,6 +305,11 @@ func (s *RpcServer) Get(ctx context.Context, req *protoempty.Empty) (*v1.UserPro
 		userProfile.Account = accountProfile
 	}
 
+	err = s.notifications.SendTestPush(ctx, user)
+	if err != nil {
+		s.logger.WithField("failed to send push to user id", user.Id).Error(err)
+	}
+
 	return userProfile, nil
 }
 
@@ -328,17 +332,21 @@ func (s *RpcServer) Whitelist(ctx context.Context, req *protoempty.Empty) (*v1.W
 }
 
 func (s *RpcServer) LookupByAddress(ctx context.Context, req *v1.LookupByAddressRequest) (*protoempty.Empty, error) {
-	err := req.Validate()
-	if err != nil {
-		return nil, err
-	}
-
 	aReq := &accountsv1.Address{Address: req.Address}
-	_, err = s.accounts.GetByAddress(ctx, aReq)
+	_, err := s.accounts.GetByAddress(ctx, aReq)
 	if err != nil {
 		s.logger.Errorf("failed to look up address: %s", err)
 		return nil, rpc.ErrRpcNotFound
 
+	}
+
+	return new(protoempty.Empty), nil
+}
+
+func (s *RpcServer) Activate(ctx context.Context, req *v1.UserRequest) (*protoempty.Empty, error) {
+	if err := s.ds.User.Activate(req.Id); err != nil {
+		s.logger.Errorf("failed to activate user: %s", err)
+		return nil, rpc.ErrRpcInternal
 	}
 
 	return new(protoempty.Empty), nil
@@ -354,6 +362,21 @@ func (s *RpcServer) createToken(ctx context.Context, user *v1.User) (string, err
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	t, err := token.SignedString([]byte(s.secret))
+	if err != nil {
+		return "", err
+	}
+
+	return t, nil
+}
+
+func (s *RpcServer) createCentToken(ctx context.Context, user *v1.User) (string, error) {
+	claims := jwt.StandardClaims{
+		Subject:   user.Id,
+		ExpiresAt: time.Now().Add(time.Hour * 72).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	t, err := token.SignedString([]byte(s.centSecret))
 	if err != nil {
 		return "", err
 	}
