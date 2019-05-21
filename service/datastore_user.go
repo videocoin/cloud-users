@@ -3,9 +3,9 @@ package service
 import (
 	"errors"
 	"fmt"
-	"time"
 
-	"github.com/AlekSi/pointer"
+	"github.com/golang/protobuf/ptypes"
+
 	v1 "github.com/VideoCoin/cloud-api/users/v1"
 	"github.com/VideoCoin/cloud-pkg/dbutil"
 	"github.com/VideoCoin/cloud-pkg/uuid4"
@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	ErrUserNotFound        = errors.New("user not found")
-	ErrUserIsAlreadyExists = errors.New("user is already exists")
+	ErrUserNotFound      = errors.New("user not found")
+	ErrUserAlreadyExists = errors.New("user already exists")
 )
 
 type UserDatastore struct {
@@ -29,8 +29,7 @@ func NewUserDatastore(db *gorm.DB) (*UserDatastore, error) {
 func (ds *UserDatastore) List() ([]*v1.User, error) {
 	users := []*v1.User{}
 
-	err := ds.db.Find(&users).Error
-	if err != nil {
+	if err := ds.db.Find(&users).Error; err != nil {
 		return nil, fmt.Errorf("failed to get users list: %s", err)
 	}
 
@@ -40,8 +39,7 @@ func (ds *UserDatastore) List() ([]*v1.User, error) {
 func (ds *UserDatastore) Get(id string) (*v1.User, error) {
 	user := &v1.User{}
 
-	err := ds.db.Where("id = ?", id).First(user).Error
-	if err != nil {
+	if err := ds.db.Where("id = ?", id).First(user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrUserNotFound
 		}
@@ -55,8 +53,7 @@ func (ds *UserDatastore) Get(id string) (*v1.User, error) {
 func (ds *UserDatastore) GetByEmail(email string) (*v1.User, error) {
 	user := &v1.User{}
 
-	err := ds.db.Where("email = ?", email).First(user).Error
-	if err != nil {
+	if err := ds.db.Where("email = ?", email).First(user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrUserNotFound
 		}
@@ -70,8 +67,7 @@ func (ds *UserDatastore) GetByEmail(email string) (*v1.User, error) {
 func (ds *UserDatastore) GetByVerificationCode(code string) (*v1.User, error) {
 	user := &v1.User{}
 
-	err := ds.db.Where("verification_code = ?", code).First(user).Error
-	if err != nil {
+	if err := ds.db.Where("verification_code = ?", code).First(user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrUserNotFound
 		}
@@ -89,7 +85,7 @@ func (ds *UserDatastore) Register(email, name, password string) (*v1.User, error
 	err := tx.Where("email = ?", email).First(user).Error
 	if err == nil {
 		tx.Rollback()
-		return nil, ErrUserIsAlreadyExists
+		return nil, ErrUserAlreadyExists
 	}
 
 	if err != nil && err != gorm.ErrRecordNotFound {
@@ -104,20 +100,24 @@ func (ds *UserDatastore) Register(email, name, password string) (*v1.User, error
 	}
 
 	passwordHash, _ := hashPassword(password)
+	time, err := ptypes.Timestamp(ptypes.TimestampNow())
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
 
 	user = &v1.User{
 		Id:        id,
 		Email:     email,
 		Name:      name,
 		Password:  passwordHash,
-		CreatedAt: pointer.ToTime(time.Now()),
+		CreatedAt: &time,
 	}
 
-	err = tx.Create(user).Error
-	if err != nil {
+	if err = tx.Create(user).Error; err != nil {
 		ec := dbutil.ErrorCode(err)
 		if ec == dbutil.ErrDuplicateEntry {
-			return nil, ErrUserIsAlreadyExists
+			return nil, ErrUserAlreadyExists
 		}
 
 		tx.Rollback()
@@ -132,45 +132,45 @@ func (ds *UserDatastore) Register(email, name, password string) (*v1.User, error
 
 func (ds *UserDatastore) ResetPassword(user *v1.User, password string) error {
 	passwordHash, _ := hashPassword(password)
-
 	user.Password = passwordHash
 
 	updates := map[string]interface{}{
 		"password": user.Password,
 	}
 
-	err := ds.db.Model(user).Updates(updates).Error
-	if err != nil {
+	if err := ds.db.Model(user).Updates(updates).Error; err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (ds *UserDatastore) UpdateAuthToken(user *v1.User, token string) error {
+func (ds *UserDatastore) UpdateAuthTokens(user *v1.User, token, centToken string) error {
 	user.Token = token
+	user.CentToken = centToken
 
 	updates := map[string]interface{}{
-		"token": user.Token,
+		"token":     user.Token,
+		"centToken": user.CentToken,
 	}
 
-	err := ds.db.Model(user).Updates(updates).Error
-	if err != nil {
+	if err := ds.db.Model(user).Updates(updates).Error; err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (ds *UserDatastore) ResetAuthToken(user *v1.User) error {
+func (ds *UserDatastore) ResetAuthTokens(user *v1.User) error {
 	user.Token = ""
+	user.CentToken = ""
 
 	updates := map[string]interface{}{
-		"token": user.Token,
+		"token":     user.Token,
+		"centToken": user.CentToken,
 	}
 
-	err := ds.db.Model(user).Updates(updates).Error
-	if err != nil {
+	if err := ds.db.Model(user).Updates(updates).Error; err != nil {
 		return err
 	}
 
@@ -178,16 +178,21 @@ func (ds *UserDatastore) ResetAuthToken(user *v1.User) error {
 }
 
 func (ds *UserDatastore) Activate(userID string) error {
+	time, err := ptypes.Timestamp(ptypes.TimestampNow())
+	if err != nil {
+		return err
+	}
+
 	user := &v1.User{
 		Id: userID,
 	}
 
 	updates := map[string]interface{}{
-		"activated": true,
+		"is_active":   true,
+		"activatedAt": &time,
 	}
 
-	err := ds.db.Model(user).Updates(updates).Error
-	if err != nil {
+	if err = ds.db.Model(user).Updates(updates).Error; err != nil {
 		return err
 	}
 
