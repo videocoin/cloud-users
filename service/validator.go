@@ -3,11 +3,11 @@ package service
 import (
 	"reflect"
 	"strings"
+	"unicode"
 
 	"github.com/VideoCoin/cloud-api/rpc"
 	enLocale "github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
-	"github.com/nbutton23/zxcvbn-go"
 	validator "gopkg.in/go-playground/validator.v9"
 	enTrans "gopkg.in/go-playground/validator.v9/translations/en"
 )
@@ -88,7 +88,7 @@ func EmailTranslation(ut ut.Translator, fe validator.FieldError) string {
 }
 
 func RegisterSecurePasswordTranslation(ut ut.Translator) error {
-	return ut.Add("secure-password", "Password is too simple", true)
+	return ut.Add("secure-password", "Password must be more than 8 characters and contain both numbers and letters", true)
 }
 
 func SecurePasswordTranslation(ut ut.Translator, fe validator.FieldError) string {
@@ -97,7 +97,7 @@ func SecurePasswordTranslation(ut ut.Translator, fe validator.FieldError) string
 }
 
 func RegisterConfirmPasswordTranslation(ut ut.Translator) error {
-	return ut.Add("confirm-password", "Password does not match", true)
+	return ut.Add("confirm-password", "Passwords does not match", true)
 }
 
 func ConfirmPasswordTranslation(ut ut.Translator, fe validator.FieldError) string {
@@ -119,17 +119,40 @@ func ValidateConfirmPassword(fl validator.FieldLevel) bool {
 
 func ValidateSecurePassword(fl validator.FieldLevel) bool {
 	field := fl.Field()
+	password := field.String()
 
-	if field.String() == "" {
+	if password == "" {
 		return false
 	}
 
-	s := zxcvbn.PasswordStrength(field.String(), nil)
-	if s.Score <= 2 {
-		return false
+	var (
+		hasMinLen = false
+		hasNumber = false
+		hasLetter = false
+		// hasUpper   = false
+		// hasSpecial = false
+		// hasLower   = false
+	)
+
+	if len(password) >= 8 {
+		hasMinLen = true
 	}
 
-	return true
+	for _, char := range password {
+		switch {
+		case unicode.IsLetter(char):
+			hasLetter = true
+		case unicode.IsNumber(char):
+			hasNumber = true
+			//     hasUpper = true
+			// case unicode.IsLower(char):
+			//     hasLower = true
+			// case unicode.IsPunct(char) || unicode.IsSymbol(char):
+			//     hasSpecial = true
+		}
+	}
+
+	return hasMinLen && hasNumber && hasLetter
 }
 
 func extractValueFromTag(tag string) string {

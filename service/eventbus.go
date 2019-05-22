@@ -38,13 +38,15 @@ func (e *EventBus) Stop() error {
 }
 
 func (e *EventBus) registerPublishers() error {
-	err := e.mq.Publisher("account/create")
-	if err != nil {
+	if err := e.mq.Publisher("account/create"); err != nil {
 		return err
 	}
 
-	err = e.mq.Publisher("notifications/send")
-	if err != nil {
+	if err := e.mq.Publisher("notifications/send"); err != nil {
+		return err
+	}
+
+	if err := e.mq.Publisher("notifications/send"); err != nil {
 		return err
 	}
 
