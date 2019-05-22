@@ -6,5 +6,5 @@ import (
 )
 
 var (
-	ErrRpcUserAlreadyExists = grpc.Errorf(codes.AlreadyExists, "User is already registered")
+	ErrRpcUserAlreadyExists = grpc.Errorf(codes.AlreadyExists, "User already exists")
 )

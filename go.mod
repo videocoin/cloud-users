@@ -5,8 +5,8 @@ go 1.12
 require (
 	cloud.google.com/go v0.39.0 // indirect
 	github.com/AlekSi/pointer v1.0.0 // indirect
-	github.com/VideoCoin/cloud-api v0.0.0-20190520191347-d5f0275c9fe3
-	github.com/VideoCoin/cloud-pkg v0.0.0-20190414194354-81fc89d29c9d
+	github.com/VideoCoin/cloud-api v0.0.0-20190521230011-1b1bec730f23
+	github.com/VideoCoin/cloud-pkg v0.0.0-20190513053603-e540bd177f27
 	github.com/VideoCoin/common v0.1.110 // indirect
 	github.com/certifi/gocertifi v0.0.0-20190410005359-59a85de7f35e // indirect
 	github.com/dchest/authcookie v0.0.0-20120917135355-fbdef6e99866
@@ -18,6 +18,7 @@ require (
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
 	github.com/gogo/googleapis v1.2.0 // indirect
 	github.com/gogo/protobuf v1.2.1
+	github.com/gogo/status v1.1.0 // indirect
 	github.com/golang/mock v1.3.1 // indirect
 	github.com/golang/protobuf v1.3.1
 	github.com/google/btree v1.0.0 // indirect
@@ -45,16 +46,17 @@ require (
 	golang.org/x/image v0.0.0-20190516052701-61b8692d9a5c // indirect
 	golang.org/x/lint v0.0.0-20190409202823-959b441ac422 // indirect
 	golang.org/x/mobile v0.0.0-20190509164839-32b2708ab171 // indirect
+	golang.org/x/net v0.0.0-20190522135303-fa69b94a3b58 // indirect
 	golang.org/x/oauth2 v0.0.0-20190517181255-950ef44c6e07 // indirect
-	golang.org/x/sys v0.0.0-20190520201301-c432e742b0af // indirect
+	golang.org/x/sys v0.0.0-20190522044717-8097e1b27ff5 // indirect
 	golang.org/x/text v0.3.2 // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
-	golang.org/x/tools v0.0.0-20190520220859-26647e34d3c0 // indirect
+	golang.org/x/tools v0.0.0-20190521203540-521d6ed310dd // indirect
 	google.golang.org/appengine v1.6.0 // indirect
 	google.golang.org/grpc v1.20.1
 	gopkg.in/go-playground/validator.v9 v9.28.0
 	gopkg.in/yaml.v2 v2.2.2 // indirect
-	honnef.co/go/tools v0.0.0-20190418001031-e561f6794a2a // indirect
+	honnef.co/go/tools v0.0.0-20190522022531-bad1bd262ba8 // indirect
 )
 
 replace github.com/VideoCoin/cloud-api => ../cloud-api
