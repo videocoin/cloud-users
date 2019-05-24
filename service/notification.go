@@ -21,6 +21,28 @@ func NewNotificationClient(eb *EventBus, logger *logrus.Entry) (*NotificationCli
 	}, nil
 }
 
+func (c *NotificationClient) SendEmailWaitlisted(ctx context.Context, user *v1.User) error {
+	md := metautils.ExtractIncoming(ctx)
+
+	params := map[string]string{
+		"to":     user.Email,
+		"domain": md.Get("x-forwarded-host"),
+	}
+
+	notification := &notificationv1.Notification{
+		Target:   notificationv1.NotificationTarget_EMAIL,
+		Template: "user_waitlisted",
+		Params:   params,
+	}
+
+	err := c.eb.SendNotification(notification)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *NotificationClient) SendEmailWelcome(ctx context.Context, user *v1.User) error {
 	md := metautils.ExtractIncoming(ctx)
 

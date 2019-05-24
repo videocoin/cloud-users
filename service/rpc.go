@@ -122,12 +122,7 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 		return nil, rpc.ErrRpcInternal
 	}
 
-	centToken, err := s.createCentToken(ctx, user)
-	if err != nil {
-		s.logger.Error(err)
-	}
-
-	if err = s.ds.User.UpdateAuthTokens(user, token, centToken); err != nil {
+	if err = s.ds.User.UpdateAuthToken(user, token); err != nil {
 		s.logger.Error(err)
 		return nil, rpc.ErrRpcInternal
 	}
@@ -142,13 +137,12 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 		s.logger.Errorf("failed to create account via eventbus: %s", err)
 	}
 
-	if err = s.notifications.SendEmailWelcome(ctx, user); err != nil {
+	if err = s.notifications.SendEmailWaitlisted(ctx, user); err != nil {
 		s.logger.WithField("failed to send welcome email to user id", user.Id).Error(err)
 	}
 
 	return &v1.LoginUserResponse{
-		Token:     token,
-		CentToken: centToken,
+		Token: token,
 	}, nil
 }
 
@@ -178,19 +172,13 @@ func (s *RpcServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.Lo
 		return nil, rpc.ErrRpcInternal
 	}
 
-	centToken, err := s.createCentToken(ctx, user)
-	if err != nil {
-		s.logger.Error(err)
-	}
-
-	if err = s.ds.User.UpdateAuthTokens(user, token, centToken); err != nil {
+	if err = s.ds.User.UpdateAuthToken(user, token); err != nil {
 		s.logger.Error(err)
 		return nil, rpc.ErrRpcInternal
 	}
 
 	return &v1.LoginUserResponse{
-		Token:     user.Token,
-		CentToken: centToken,
+		Token: user.Token,
 	}, nil
 }
 
@@ -201,7 +189,7 @@ func (s *RpcServer) Logout(ctx context.Context, req *protoempty.Empty) (*protoem
 		return nil, err
 	}
 
-	if err = s.ds.User.ResetAuthTokens(user); err != nil {
+	if err = s.ds.User.ResetAuthToken(user); err != nil {
 		s.logger.Error(err)
 		return nil, rpc.ErrRpcInternal
 	}
@@ -327,33 +315,28 @@ func (s *RpcServer) LookupByAddress(ctx context.Context, req *v1.LookupByAddress
 }
 
 func (s *RpcServer) Activate(ctx context.Context, req *v1.UserRequest) (*protoempty.Empty, error) {
-	if err := s.ds.User.Activate(req.Id); err != nil {
+	user, ctx, err := s.authenticate(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if user.Role < v1.UserRoleManager {
+		return nil, rpc.ErrRpcPermissionDenied
+	}
+
+	if err := s.ds.User.Activate(user.Id); err != nil {
 		s.logger.Errorf("failed to activate user: %s", err)
 		return nil, rpc.ErrRpcInternal
+	}
+
+	if err = s.notifications.SendEmailWelcome(ctx, user); err != nil {
+		s.logger.WithField("failed to send welcome email to user id", user.Id).Error(err)
 	}
 
 	return new(protoempty.Empty), nil
 }
 
 func (s *RpcServer) createToken(ctx context.Context, user *v1.User) (string, error) {
-	claims := &auth.JWTClaims{
-		UserID: user.Id,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Hour * 72).Unix(),
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	t, err := token.SignedString([]byte(s.secret))
-	if err != nil {
-		return "", err
-	}
-
-	return t, nil
-}
-
-func (s *RpcServer) createCentToken(ctx context.Context, user *v1.User) (string, error) {
 	claims := jwt.StandardClaims{
 		Subject:   user.Id,
 		ExpiresAt: time.Now().Add(time.Hour * 72).Unix(),

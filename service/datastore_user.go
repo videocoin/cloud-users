@@ -145,13 +145,11 @@ func (ds *UserDatastore) ResetPassword(user *v1.User, password string) error {
 	return nil
 }
 
-func (ds *UserDatastore) UpdateAuthTokens(user *v1.User, token, centToken string) error {
+func (ds *UserDatastore) UpdateAuthToken(user *v1.User, token string) error {
 	user.Token = token
-	user.CentToken = centToken
 
 	updates := map[string]interface{}{
-		"token":     user.Token,
-		"centToken": user.CentToken,
+		"token": user.Token,
 	}
 
 	if err := ds.db.Model(user).Updates(updates).Error; err != nil {
@@ -161,13 +159,11 @@ func (ds *UserDatastore) UpdateAuthTokens(user *v1.User, token, centToken string
 	return nil
 }
 
-func (ds *UserDatastore) ResetAuthTokens(user *v1.User) error {
+func (ds *UserDatastore) ResetAuthToken(user *v1.User) error {
 	user.Token = ""
-	user.CentToken = ""
 
 	updates := map[string]interface{}{
-		"token":     user.Token,
-		"centToken": user.CentToken,
+		"token": user.Token,
 	}
 
 	if err := ds.db.Model(user).Updates(updates).Error; err != nil {
