@@ -51,11 +51,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Chart.Name }}
                   key: recoverySecret
-            - name: CENTSECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Chart.Name }}
-                  key: centSecret
             - name: SENTRY_DSN
               valueFrom:
                 secretKeyRef:

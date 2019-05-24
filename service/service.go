@@ -44,7 +44,6 @@ func NewService(cfg *Config) (*Service, error) {
 		Addr:           cfg.RPCAddr,
 		Secret:         cfg.Secret,
 		RecoverySecret: cfg.RecoverySecret,
-		CentSecret:     cfg.CentSecret,
 		Logger:         cfg.Logger,
 		DS:             ds,
 		EB:             eb,

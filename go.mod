@@ -5,14 +5,14 @@ go 1.12
 require (
 	cloud.google.com/go v0.39.0 // indirect
 	github.com/AlekSi/pointer v1.0.0 // indirect
+	github.com/OneOfOne/xxhash v1.2.5 // indirect
 	github.com/VideoCoin/cloud-api v0.0.0-20190524042422-3fb2571c5543
-	github.com/VideoCoin/cloud-pkg v0.0.0-20190513053603-e540bd177f27
+	github.com/VideoCoin/cloud-pkg v0.0.0-20190524042311-278fb4516aa9
 	github.com/VideoCoin/common v0.1.110 // indirect
-	github.com/certifi/gocertifi v0.0.0-20190506164543-d2eda7129713 // indirect
+	github.com/btcsuite/goleveldb v1.0.0 // indirect
 	github.com/dchest/authcookie v0.0.0-20120917135355-fbdef6e99866
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/evalphobia/logrus_sentry v0.8.2 // indirect
-	github.com/getsentry/raven-go v0.2.0 // indirect
+	github.com/dgryski/go-sip13 v0.0.0-20190329191031-25c5027a8c7b // indirect
 	github.com/go-playground/locales v0.12.1
 	github.com/go-playground/universal-translator v0.16.0
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
@@ -21,26 +21,33 @@ require (
 	github.com/gogo/status v1.1.0 // indirect
 	github.com/golang/mock v1.3.1 // indirect
 	github.com/golang/protobuf v1.3.1
+	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/btree v1.0.0 // indirect
 	github.com/google/go-cmp v0.3.0 // indirect
 	github.com/google/pprof v0.0.0-20190515194954-54271f7e092f // indirect
+	github.com/google/uuid v1.1.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
-	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
+	github.com/jessevdk/go-flags v1.4.0 // indirect
 	github.com/jinzhu/copier v0.0.0-20180308034124-7e38e58719c3
 	github.com/jinzhu/gorm v1.9.2
 	github.com/jinzhu/inflection v0.0.0-20180308033659-04140366298a // indirect
 	github.com/kelseyhightower/envconfig v1.3.0
 	github.com/kisielk/errcheck v1.2.0 // indirect
+	github.com/kkdai/bstream v0.0.0-20181106074824-b3251f7901ec // indirect
+	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/kr/pty v1.1.4 // indirect
 	github.com/leodido/go-urn v1.1.0 // indirect
 	github.com/nbutton23/zxcvbn-go v0.0.0-20180912185939-ae427f1e4c1d // indirect
-	github.com/opentracing/opentracing-go v1.1.0 // indirect
-	github.com/pkg/errors v0.8.1 // indirect
-	github.com/prometheus/client_golang v0.9.3 // indirect
+	github.com/onsi/ginkgo v1.8.0 // indirect
+	github.com/onsi/gomega v1.5.0 // indirect
+	github.com/prometheus/common v0.4.1 // indirect
+	github.com/prometheus/procfs v0.0.0-20190523193104-a7aeb8df3389 // indirect
+	github.com/prometheus/tsdb v0.8.0 // indirect
 	github.com/rogpeppe/fastuuid v1.1.0 // indirect
 	github.com/sirupsen/logrus v1.4.2
-	github.com/streadway/amqp v0.0.0-20190404075320-75d898a42a94 // indirect
+	github.com/spaolacci/murmur3 v1.1.0 // indirect
+	github.com/stretchr/objx v0.2.0 // indirect
 	golang.org/x/crypto v0.0.0-20190513172903-22d7a77e9e5f
 	golang.org/x/exp v0.0.0-20190510132918-efd6b22b2522 // indirect
 	golang.org/x/image v0.0.0-20190523035834-f03afa92d3ff // indirect
@@ -61,5 +68,4 @@ require (
 )
 
 //replace github.com/VideoCoin/cloud-api => ../cloud-api
-
 //replace github.com/VideoCoin/cloud-pkg => ../cloud-pkg

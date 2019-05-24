@@ -14,7 +14,6 @@ type Config struct {
 	MQURI           string `default:"amqp://guest:guest@127.0.0.1:5672" envconfig:"MQURI"`
 	Secret          string `default:"secret" envconfig:"SECRET"`
 	RecoverySecret  string `default:"secret" envconfig:"RECOVERYSECRET"`
-	CentSecret      string `default:"secret" envconfig:"CENTSECRET"`
 
 	Logger *logrus.Entry `envconfig:"-"`
 }

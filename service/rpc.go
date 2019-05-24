@@ -22,7 +22,6 @@ type RpcServerOptions struct {
 	Addr           string
 	Secret         string
 	RecoverySecret string
-	CentSecret     string
 
 	Logger   *logrus.Entry
 	DS       *Datastore
@@ -34,7 +33,6 @@ type RpcServer struct {
 	addr           string
 	secret         string
 	recoverySecret string
-	centSecret     string
 
 	grpc          *grpc.Server
 	listen        net.Listener
@@ -65,7 +63,6 @@ func NewRpcServer(opts *RpcServerOptions) (*RpcServer, error) {
 		addr:           opts.Addr,
 		secret:         opts.Secret,
 		recoverySecret: opts.RecoverySecret,
-		centSecret:     opts.CentSecret,
 		grpc:           grpcServer,
 		listen:         listen,
 		logger:         opts.Logger,
@@ -344,7 +341,7 @@ func (s *RpcServer) createToken(ctx context.Context, user *v1.User) (string, err
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	t, err := token.SignedString([]byte(s.centSecret))
+	t, err := token.SignedString([]byte(s.secret))
 	if err != nil {
 		return "", err
 	}
