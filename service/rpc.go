@@ -103,7 +103,7 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 				Errors: []*rpc.ValidationError{
 					&rpc.ValidationError{
 						Field:   "email",
-						Message: "User is already registered",
+						Message: "Email is already registered",
 					},
 				},
 			}
@@ -124,18 +124,13 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 		return nil, rpc.ErrRpcInternal
 	}
 
-	// _, err = s.accounts.Create(context.Background(), accReq)
-	// if err != nil {
-	//s.logger.Warningf("failed to create account: %s", err)
-	// }
-
 	accReq := &accountsv1.AccountRequest{OwnerId: user.Id}
 	if err = s.eb.CreateUserAccount(accReq); err != nil {
 		s.logger.Errorf("failed to create account via eventbus: %s", err)
 	}
 
 	if err = s.notifications.SendEmailWaitlisted(ctx, user); err != nil {
-		s.logger.WithField("failed to send welcome email to user id", user.Id).Error(err)
+		s.logger.WithField("failed to send whitelisted email to user id", user.Id).Error(err)
 	}
 
 	return &v1.LoginUserResponse{
@@ -202,11 +197,11 @@ func (s *RpcServer) StartRecovery(ctx context.Context, req *v1.StartRecoveryUser
 
 	user, err := s.ds.User.GetByEmail(req.Email)
 	if err != nil {
-		s.logger.Errorf("failed to get user: %s", err)
 		if err == ErrUserNotFound {
 			return nil, rpc.ErrRpcBadRequest
 		}
 
+		s.logger.Errorf("failed to get user: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
 
