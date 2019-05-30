@@ -88,23 +88,3 @@ func (c *NotificationClient) SendEmailRecovery(ctx context.Context, user *v1.Use
 
 	return nil
 }
-
-func (c *NotificationClient) SendTestPush(ctx context.Context, user *v1.User) error {
-	params := map[string]string{
-		"event":   "user/created",
-		"user_id": user.Id,
-		"name":    user.Name,
-	}
-
-	notification := &notificationv1.Notification{
-		Target: notificationv1.NotificationTarget_WEB,
-		Params: params,
-	}
-
-	err := c.eb.SendNotification(notification)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}

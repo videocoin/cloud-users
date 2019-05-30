@@ -268,11 +268,6 @@ func (s *RpcServer) Get(ctx context.Context, req *protoempty.Empty) (*v1.UserPro
 		userProfile.Account = accountProfile
 	}
 
-	err = s.notifications.SendTestPush(ctx, user)
-	if err != nil {
-		s.logger.WithField("failed to send push to user id", user.Id).Error(err)
-	}
-
 	return userProfile, nil
 }
 
