@@ -13,6 +13,8 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 	protoempty "github.com/gogo/protobuf/types"
 	"github.com/jinzhu/copier"
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/log"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -89,12 +91,20 @@ func (s *RpcServer) Health(ctx context.Context, req *protoempty.Empty) (*rpc.Hea
 }
 
 func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.LoginUserResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Create")
+	defer span.Finish()
+
+	span.LogFields(
+		log.String("email", req.Email),
+		log.String("name", req.Name),
+	)
+
 	if verr := s.validator.validate(req); verr != nil {
 		s.logger.Error(verr)
 		return nil, rpc.NewRpcValidationError(verr)
 	}
 
-	user, err := s.ds.User.Register(req.Email, req.Name, req.Password)
+	user, err := s.ds.User.Register(ctx, req.Email, req.Name, req.Password)
 	if err != nil {
 		s.logger.Error(err)
 
@@ -119,13 +129,13 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 		return nil, rpc.ErrRpcInternal
 	}
 
-	if err = s.ds.User.UpdateAuthToken(user, token); err != nil {
+	if err = s.ds.User.UpdateAuthToken(ctx, user, token); err != nil {
 		s.logger.Error(err)
 		return nil, rpc.ErrRpcInternal
 	}
 
 	accReq := &accountsv1.AccountRequest{OwnerId: user.Id}
-	if err = s.eb.CreateUserAccount(accReq); err != nil {
+	if err = s.eb.CreateUserAccount(span, accReq); err != nil {
 		s.logger.Errorf("failed to create account via eventbus: %s", err)
 	}
 
@@ -139,12 +149,19 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 }
 
 func (s *RpcServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.LoginUserResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Login")
+	defer span.Finish()
+
+	span.LogFields(
+		log.String("email", req.Email),
+	)
+
 	if verr := s.validator.validate(req); verr != nil {
 		s.logger.Error(verr)
 		return nil, rpc.NewRpcValidationError(verr)
 	}
 
-	user, err := s.ds.User.GetByEmail(req.Email)
+	user, err := s.ds.User.GetByEmail(ctx, req.Email)
 	if err != nil {
 		s.logger.Errorf("failed to get user: %s", err)
 		if err == ErrUserNotFound {
@@ -154,7 +171,7 @@ func (s *RpcServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.Lo
 		return nil, rpc.ErrRpcInternal
 	}
 
-	if !checkPasswordHash(req.Password, user.Password) {
+	if !checkPasswordHash(ctx, req.Password, user.Password) {
 		return nil, rpc.ErrRpcUnauthenticated
 	}
 
@@ -164,7 +181,7 @@ func (s *RpcServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.Lo
 		return nil, rpc.ErrRpcInternal
 	}
 
-	if err = s.ds.User.UpdateAuthToken(user, token); err != nil {
+	if err = s.ds.User.UpdateAuthToken(ctx, user, token); err != nil {
 		s.logger.Error(err)
 		return nil, rpc.ErrRpcInternal
 	}
@@ -190,12 +207,19 @@ func (s *RpcServer) Logout(ctx context.Context, req *protoempty.Empty) (*protoem
 }
 
 func (s *RpcServer) StartRecovery(ctx context.Context, req *v1.StartRecoveryUserRequest) (*protoempty.Empty, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "StartRecovery")
+	defer span.Finish()
+
+	span.LogFields(
+		log.String("email", req.Email),
+	)
+
 	if verr := s.validator.validate(req); verr != nil {
 		s.logger.Error(verr)
 		return nil, rpc.NewRpcValidationError(verr)
 	}
 
-	user, err := s.ds.User.GetByEmail(req.Email)
+	user, err := s.ds.User.GetByEmail(ctx, req.Email)
 	if err != nil {
 		if err == ErrUserNotFound {
 			return nil, rpc.ErrRpcBadRequest
@@ -215,12 +239,19 @@ func (s *RpcServer) StartRecovery(ctx context.Context, req *v1.StartRecoveryUser
 }
 
 func (s *RpcServer) Recover(ctx context.Context, req *v1.RecoverUserRequest) (*protoempty.Empty, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Recover")
+	defer span.Finish()
+
+	span.LogFields(
+		log.String("token", req.Token),
+	)
+
 	if verr := s.validator.validate(req); verr != nil {
 		s.logger.Error(verr)
 		return nil, rpc.NewRpcValidationError(verr)
 	}
 
-	user, err := verifyRecoveryToken(req.Token, s.ds.User.GetByEmail, []byte(s.recoverySecret))
+	user, err := verifyRecoveryToken(ctx, req.Token, s.ds.User.GetByEmail, []byte(s.recoverySecret))
 	if err != nil {
 		s.logger.Errorf("failed to get user: %s", err)
 		if err == ErrUserNotFound {
@@ -230,7 +261,7 @@ func (s *RpcServer) Recover(ctx context.Context, req *v1.RecoverUserRequest) (*p
 		return nil, rpc.ErrRpcInternal
 	}
 
-	if err = s.ds.User.ResetPassword(user, req.Password); err != nil {
+	if err = s.ds.User.ResetPassword(ctx, user, req.Password); err != nil {
 		return nil, rpc.ErrRpcInternal
 	}
 
@@ -238,12 +269,15 @@ func (s *RpcServer) Recover(ctx context.Context, req *v1.RecoverUserRequest) (*p
 }
 
 func (s *RpcServer) ResetPassword(ctx context.Context, req *v1.ResetPasswordUserRequest) (*protoempty.Empty, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ResetPassword")
+	defer span.Finish()
+
 	user, _, err := s.authenticate(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = s.ds.User.ResetPassword(user, req.Password); err != nil {
+	if err = s.ds.User.ResetPassword(ctx, user, req.Password); err != nil {
 		return nil, rpc.ErrRpcInternal
 	}
 
@@ -324,6 +358,14 @@ func (s *RpcServer) Activate(ctx context.Context, req *v1.UserRequest) (*protoem
 }
 
 func (s *RpcServer) createToken(ctx context.Context, user *v1.User) (string, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "createToken")
+	defer span.Finish()
+
+	span.LogFields(
+		log.String("id", user.Id),
+		log.String("email", user.Email),
+	)
+
 	claims := jwt.StandardClaims{
 		Subject:   user.Id,
 		ExpiresAt: time.Now().Add(time.Hour * 72).Unix(),
@@ -340,6 +382,9 @@ func (s *RpcServer) createToken(ctx context.Context, user *v1.User) (string, err
 }
 
 func (s *RpcServer) authenticate(ctx context.Context) (*v1.User, context.Context, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "authenticate")
+	defer span.Finish()
+
 	ctx = auth.NewContextWithSecretKey(ctx, s.secret)
 	ctx, err := auth.AuthFromContext(ctx)
 	if err != nil {

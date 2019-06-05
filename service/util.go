@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -11,6 +12,8 @@ import (
 
 	v1 "github.com/VideoCoin/cloud-api/users/v1"
 	"github.com/dchest/authcookie"
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/log"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -53,7 +56,14 @@ func newRecoveryToken(email string, duration time.Duration, passwordHash, secret
 // Function pwdvalFn must return the current password value for the login it
 // receives in arguments, or an error. If it returns an error, VerifyToken
 // returns the same error.
-func verifyRecoveryToken(token string, getUserFunc func(string) (*v1.User, error), secret []byte) (user *v1.User, err error) {
+func verifyRecoveryToken(ctx context.Context, token string, getUserFunc func(context.Context, string) (*v1.User, error), secret []byte) (user *v1.User, err error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "verifyRecoveryToken")
+	defer span.Finish()
+
+	span.LogFields(
+		log.String("token", token),
+	)
+
 	blen := base64.URLEncoding.DecodedLen(len(token))
 	// Avoid allocation if the token is too short
 	if blen <= 4+32 {
@@ -81,7 +91,11 @@ func verifyRecoveryToken(token string, getUserFunc func(string) (*v1.User, error
 	}
 
 	email := string(data[4:])
-	user, err = getUserFunc(email)
+	span.LogFields(
+		log.String("email", email),
+	)
+
+	user, err = getUserFunc(ctx, email)
 	if err != nil {
 		return
 	}
@@ -97,12 +111,23 @@ func verifyRecoveryToken(token string, getUserFunc func(string) (*v1.User, error
 	return
 }
 
-func hashPassword(password string) (string, error) {
+func hashPassword(ctx context.Context, password string) (string, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "hashPassword")
+	defer span.Finish()
+
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
 }
 
-func checkPasswordHash(password, hash string) bool {
+func checkPasswordHash(ctx context.Context, password, hash string) bool {
+	span, _ := opentracing.StartSpanFromContext(ctx, "checkPasswordHash")
+	defer span.Finish()
+
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+
+	span.LogFields(
+		log.Bool("is equal", err == nil),
+	)
+
 	return err == nil
 }

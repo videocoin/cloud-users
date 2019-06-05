@@ -24,6 +24,12 @@ spec:
           ports:
             - containerPort: {{ .Values.service.internalRpcPort }}
           env:
+            - name: JAEGER_AGENT_HOST
+              value
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: JAEGER_AGENT_PORT
+              value: "6831"
             - name: USERS_RPCADDR
               value: 0.0.0.0:{{ .Values.service.internalRpcPort }}
             - name: USERS_ACCOUNTSRPCADDR

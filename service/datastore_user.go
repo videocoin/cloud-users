@@ -1,10 +1,13 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/golang/protobuf/ptypes"
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/log"
 
 	v1 "github.com/VideoCoin/cloud-api/users/v1"
 	"github.com/VideoCoin/cloud-pkg/dbutil"
@@ -50,7 +53,14 @@ func (ds *UserDatastore) Get(id string) (*v1.User, error) {
 	return user, nil
 }
 
-func (ds *UserDatastore) GetByEmail(email string) (*v1.User, error) {
+func (ds *UserDatastore) GetByEmail(ctx context.Context, email string) (*v1.User, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "GetByEmail")
+	defer span.Finish()
+
+	span.LogFields(
+		log.String("email", email),
+	)
+
 	user := &v1.User{}
 
 	if err := ds.db.Where("email = ?", email).First(user).Error; err != nil {
@@ -78,7 +88,15 @@ func (ds *UserDatastore) GetByVerificationCode(code string) (*v1.User, error) {
 	return user, nil
 }
 
-func (ds *UserDatastore) Register(email, name, password string) (*v1.User, error) {
+func (ds *UserDatastore) Register(ctx context.Context, email, name, password string) (*v1.User, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Register")
+	defer span.Finish()
+
+	span.LogFields(
+		log.String("email", email),
+		log.String("name", name),
+	)
+
 	tx := ds.db.Begin()
 
 	user := &v1.User{}
@@ -99,7 +117,7 @@ func (ds *UserDatastore) Register(email, name, password string) (*v1.User, error
 		return nil, err
 	}
 
-	passwordHash, _ := hashPassword(password)
+	passwordHash, _ := hashPassword(ctx, password)
 	time, err := ptypes.Timestamp(ptypes.TimestampNow())
 	if err != nil {
 		tx.Rollback()
@@ -130,8 +148,15 @@ func (ds *UserDatastore) Register(email, name, password string) (*v1.User, error
 	return user, nil
 }
 
-func (ds *UserDatastore) ResetPassword(user *v1.User, password string) error {
-	passwordHash, _ := hashPassword(password)
+func (ds *UserDatastore) ResetPassword(ctx context.Context, user *v1.User, password string) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Recover")
+	defer span.Finish()
+
+	span.LogFields(
+		log.String("email", user.Email),
+	)
+
+	passwordHash, _ := hashPassword(ctx, password)
 	user.Password = passwordHash
 
 	updates := map[string]interface{}{
@@ -145,7 +170,14 @@ func (ds *UserDatastore) ResetPassword(user *v1.User, password string) error {
 	return nil
 }
 
-func (ds *UserDatastore) UpdateAuthToken(user *v1.User, token string) error {
+func (ds *UserDatastore) UpdateAuthToken(ctx context.Context, user *v1.User, token string) error {
+	span, _ := opentracing.StartSpanFromContext(ctx, "UpdateAuthToken")
+	defer span.Finish()
+
+	span.LogFields(
+		log.String("token", token),
+	)
+
 	user.Token = token
 
 	updates := map[string]interface{}{

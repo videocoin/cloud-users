@@ -4,7 +4,10 @@ import (
 	accountsv1 "github.com/VideoCoin/cloud-api/accounts/v1"
 	notificationv1 "github.com/VideoCoin/cloud-api/notifications/v1"
 	"github.com/VideoCoin/cloud-pkg/mqmux"
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/sirupsen/logrus"
+	"github.com/streadway/amqp"
 )
 
 type EventBus struct {
@@ -57,8 +60,19 @@ func (e *EventBus) registerConsumers() error {
 	return nil
 }
 
-func (e *EventBus) CreateUserAccount(req *accountsv1.AccountRequest) error {
-	return e.mq.Publish("account/create", req)
+func (e *EventBus) CreateUserAccount(span opentracing.Span, req *accountsv1.AccountRequest) error {
+	headers := make(amqp.Table)
+
+	ext.SpanKindRPCServer.Set(span)
+	ext.Component.Set(span, "users")
+
+	span.Tracer().Inject(
+		span.Context(),
+		opentracing.TextMap,
+		mqmux.RMQHeaderCarrier(headers),
+	)
+
+	return e.mq.PublishX("account/create", req, headers)
 }
 
 func (e *EventBus) SendNotification(req *notificationv1.Notification) error {
