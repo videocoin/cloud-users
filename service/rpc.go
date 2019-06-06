@@ -336,22 +336,31 @@ func (s *RpcServer) LookupByAddress(ctx context.Context, req *v1.LookupByAddress
 }
 
 func (s *RpcServer) Activate(ctx context.Context, req *v1.UserRequest) (*protoempty.Empty, error) {
-	user, ctx, err := s.authenticate(ctx)
+	requester, ctx, err := s.authenticate(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if user.Role < v1.UserRoleManager {
+	if requester.Role < v1.UserRoleManager {
 		return nil, rpc.ErrRpcPermissionDenied
 	}
 
-	if err := s.ds.User.Activate(user.Id); err != nil {
+	user, err := s.ds.User.Get(req.Id)
+	if err != nil {
+		s.logger.Errorf("failed to get user: %s", err)
+		if err == ErrUserNotFound {
+			return nil, rpc.ErrRpcNotFound
+		}
+		return nil, rpc.ErrRpcInternal
+	}
+
+	if err := s.ds.User.Activate(req.Id); err != nil {
 		s.logger.Errorf("failed to activate user: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
 
 	if err = s.notifications.SendEmailWelcome(ctx, user); err != nil {
-		s.logger.WithField("failed to send welcome email to user id", user.Id).Error(err)
+		s.logger.WithField("failed to send welcome email to user id", req.Id).Error(err)
 	}
 
 	return new(protoempty.Empty), nil
