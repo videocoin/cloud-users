@@ -1,0 +1,79 @@
+setup_remote_docker: &setup_remote_docker
+  version: 18.06.0-ce
+  reusable: true
+  exclusive: true
+  docker_layer_caching: true
+
+base_docker_image: &base_docker_image
+  - image: gcr.io/videocoin-network/cloud-base-ci:1.0
+
+restore_repo: &restore_repo
+  restore_cache:
+    keys:
+      - v1-repo-{{ .Branch }}-{{ .Revision }}
+      - v1-repo-{{ .Branch }}
+      - v1-repo
+
+defaults: &defaults
+  working_directory: /go/src/github.com/VideoCoin/cloud-users
+  docker: *base_docker_image
+
+version: 2
+jobs:
+  build:
+    <<: *defaults
+    steps:
+      - *restore_repo
+      - checkout
+      - setup_remote_docker:
+          <<: *setup_remote_docker
+      - run:
+          name: build
+          command: |
+            make deps
+            make release
+      - save_cache:
+          key: v1-repo-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - .
+  deploy:
+    <<: *defaults
+    steps:
+      - *restore_repo
+      - setup_remote_docker:
+          <<: *setup_remote_docker
+      - run:
+          name: activate service account
+          command: |
+            echo $GCLOUD_SERVICE_KEY | gcloud auth activate-service-account --key-file=-
+      - run:
+          name: init environment
+          command: |
+            if [ $CIRCLE_BRANCH = 'develop' ]; then
+              gcloud container clusters get-credentials thor --zone us-central1-a --project videocoin-network
+              echo 'export ENV="thor"' >> $BASH_ENV
+            fi
+
+            if [ $CIRCLE_BRANCH = 'staging' ]; then
+              gcloud container clusters get-credentials hulk --zone us-central1-a --project videocoin-network
+              echo 'export ENV="hulk"' >> $BASH_ENV
+            fi
+
+            helm init --client-only
+
+          name: deploy binary
+          command: |
+            make deploy
+workflows:
+  version: 2
+  build-n-deploy:
+    jobs:
+      - build
+      - deploy:
+          requires:
+            - build
+          filters:
+            branches:
+              only:
+                - staging
+                - develop
