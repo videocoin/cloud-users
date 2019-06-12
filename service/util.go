@@ -13,7 +13,6 @@ import (
 	v1 "github.com/VideoCoin/cloud-api/users/v1"
 	"github.com/dchest/authcookie"
 	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/log"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -60,10 +59,6 @@ func verifyRecoveryToken(ctx context.Context, token string, getUserFunc func(con
 	span, ctx := opentracing.StartSpanFromContext(ctx, "verifyRecoveryToken")
 	defer span.Finish()
 
-	span.LogFields(
-		log.String("token", token),
-	)
-
 	blen := base64.URLEncoding.DecodedLen(len(token))
 	// Avoid allocation if the token is too short
 	if blen <= 4+32 {
@@ -91,9 +86,8 @@ func verifyRecoveryToken(ctx context.Context, token string, getUserFunc func(con
 	}
 
 	email := string(data[4:])
-	span.LogFields(
-		log.String("email", email),
-	)
+
+	span.LogKV("email", email)
 
 	user, err = getUserFunc(ctx, email)
 	if err != nil {
@@ -125,9 +119,7 @@ func checkPasswordHash(ctx context.Context, password, hash string) bool {
 
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 
-	span.LogFields(
-		log.Bool("is equal", err == nil),
-	)
+	span.LogKV("is equal", err == nil)
 
 	return err == nil
 }

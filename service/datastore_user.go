@@ -7,7 +7,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/log"
 
 	v1 "github.com/VideoCoin/cloud-api/users/v1"
 	"github.com/VideoCoin/cloud-pkg/dbutil"
@@ -57,9 +56,7 @@ func (ds *UserDatastore) GetByEmail(ctx context.Context, email string) (*v1.User
 	span, _ := opentracing.StartSpanFromContext(ctx, "GetByEmail")
 	defer span.Finish()
 
-	span.LogFields(
-		log.String("email", email),
-	)
+	span.LogKV("email", email)
 
 	user := &v1.User{}
 
@@ -92,10 +89,7 @@ func (ds *UserDatastore) Register(ctx context.Context, email, name, password str
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Register")
 	defer span.Finish()
 
-	span.LogFields(
-		log.String("email", email),
-		log.String("name", name),
-	)
+	span.LogKV("email", email, "name", name)
 
 	tx := ds.db.Begin()
 
@@ -152,9 +146,7 @@ func (ds *UserDatastore) ResetPassword(ctx context.Context, user *v1.User, passw
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Recover")
 	defer span.Finish()
 
-	span.LogFields(
-		log.String("email", user.Email),
-	)
+	span.LogKV("email", user.Email)
 
 	passwordHash, _ := hashPassword(ctx, password)
 	user.Password = passwordHash
@@ -174,12 +166,7 @@ func (ds *UserDatastore) UpdateAuthToken(ctx context.Context, user *v1.User, tok
 	span, _ := opentracing.StartSpanFromContext(ctx, "UpdateAuthToken")
 	defer span.Finish()
 
-	span.LogFields(
-		log.String("token", token),
-	)
-
 	user.Token = token
-
 	updates := map[string]interface{}{
 		"token": user.Token,
 	}

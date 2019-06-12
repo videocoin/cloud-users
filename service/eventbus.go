@@ -62,7 +62,6 @@ func (e *EventBus) registerConsumers() error {
 
 func (e *EventBus) CreateUserAccount(span opentracing.Span, req *accountsv1.AccountRequest) error {
 	headers := make(amqp.Table)
-
 	ext.SpanKindRPCServer.Set(span)
 	ext.Component.Set(span, "users")
 
@@ -75,6 +74,16 @@ func (e *EventBus) CreateUserAccount(span opentracing.Span, req *accountsv1.Acco
 	return e.mq.PublishX("account/create", req, headers)
 }
 
-func (e *EventBus) SendNotification(req *notificationv1.Notification) error {
-	return e.mq.Publish("notifications/send", req)
+func (e *EventBus) SendNotification(span opentracing.Span, req *notificationv1.Notification) error {
+	headers := make(amqp.Table)
+	ext.SpanKindRPCServer.Set(span)
+	ext.Component.Set(span, "users")
+
+	span.Tracer().Inject(
+		span.Context(),
+		opentracing.TextMap,
+		mqmux.RMQHeaderCarrier(headers),
+	)
+
+	return e.mq.PublishX("notifications/send", req, headers)
 }

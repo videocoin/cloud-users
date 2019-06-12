@@ -14,7 +14,6 @@ import (
 	protoempty "github.com/gogo/protobuf/types"
 	"github.com/jinzhu/copier"
 	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/log"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -94,10 +93,7 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Create")
 	defer span.Finish()
 
-	span.LogFields(
-		log.String("email", req.Email),
-		log.String("name", req.Name),
-	)
+	span.LogKV("email", req.Email, "name", req.Name)
 
 	if verr := s.validator.validate(req); verr != nil {
 		s.logger.Error(verr)
@@ -152,9 +148,7 @@ func (s *RpcServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.Lo
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Login")
 	defer span.Finish()
 
-	span.LogFields(
-		log.String("email", req.Email),
-	)
+	span.LogKV("email", req.Email)
 
 	if verr := s.validator.validate(req); verr != nil {
 		s.logger.Error(verr)
@@ -210,9 +204,7 @@ func (s *RpcServer) StartRecovery(ctx context.Context, req *v1.StartRecoveryUser
 	span, ctx := opentracing.StartSpanFromContext(ctx, "StartRecovery")
 	defer span.Finish()
 
-	span.LogFields(
-		log.String("email", req.Email),
-	)
+	span.LogKV("email", req.Email)
 
 	if verr := s.validator.validate(req); verr != nil {
 		s.logger.Error(verr)
@@ -241,10 +233,6 @@ func (s *RpcServer) StartRecovery(ctx context.Context, req *v1.StartRecoveryUser
 func (s *RpcServer) Recover(ctx context.Context, req *v1.RecoverUserRequest) (*protoempty.Empty, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Recover")
 	defer span.Finish()
-
-	span.LogFields(
-		log.String("token", req.Token),
-	)
 
 	if verr := s.validator.validate(req); verr != nil {
 		s.logger.Error(verr)
@@ -370,10 +358,7 @@ func (s *RpcServer) createToken(ctx context.Context, user *v1.User) (string, err
 	span, _ := opentracing.StartSpanFromContext(ctx, "createToken")
 	defer span.Finish()
 
-	span.LogFields(
-		log.String("id", user.Id),
-		log.String("email", user.Email),
-	)
+	span.LogKV("id", user.Id, "email", user.Email)
 
 	claims := jwt.StandardClaims{
 		Subject:   user.Id,

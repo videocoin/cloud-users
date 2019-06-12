@@ -6,6 +6,7 @@ import (
 	notificationv1 "github.com/VideoCoin/cloud-api/notifications/v1"
 	v1 "github.com/VideoCoin/cloud-api/users/v1"
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
+	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 )
 
@@ -22,6 +23,9 @@ func NewNotificationClient(eb *EventBus, logger *logrus.Entry) (*NotificationCli
 }
 
 func (c *NotificationClient) SendEmailWaitlisted(ctx context.Context, user *v1.User) error {
+	span, _ := opentracing.StartSpanFromContext(ctx, "SendEmailWaitlisted")
+	defer span.Finish()
+
 	md := metautils.ExtractIncoming(ctx)
 
 	params := map[string]string{
@@ -35,7 +39,7 @@ func (c *NotificationClient) SendEmailWaitlisted(ctx context.Context, user *v1.U
 		Params:   params,
 	}
 
-	err := c.eb.SendNotification(notification)
+	err := c.eb.SendNotification(span, notification)
 	if err != nil {
 		return err
 	}
@@ -44,6 +48,9 @@ func (c *NotificationClient) SendEmailWaitlisted(ctx context.Context, user *v1.U
 }
 
 func (c *NotificationClient) SendEmailWelcome(ctx context.Context, user *v1.User) error {
+	span, _ := opentracing.StartSpanFromContext(ctx, "Create")
+	defer span.Finish()
+
 	md := metautils.ExtractIncoming(ctx)
 
 	params := map[string]string{
@@ -58,7 +65,7 @@ func (c *NotificationClient) SendEmailWelcome(ctx context.Context, user *v1.User
 		Params:   params,
 	}
 
-	err := c.eb.SendNotification(notification)
+	err := c.eb.SendNotification(span, notification)
 	if err != nil {
 		return err
 	}
@@ -67,6 +74,9 @@ func (c *NotificationClient) SendEmailWelcome(ctx context.Context, user *v1.User
 }
 
 func (c *NotificationClient) SendEmailRecovery(ctx context.Context, user *v1.User, token string) error {
+	span, _ := opentracing.StartSpanFromContext(ctx, "Create")
+	defer span.Finish()
+
 	md := metautils.ExtractIncoming(ctx)
 
 	params := map[string]string{
@@ -81,7 +91,7 @@ func (c *NotificationClient) SendEmailRecovery(ctx context.Context, user *v1.Use
 		Params:   params,
 	}
 
-	err := c.eb.SendNotification(notification)
+	err := c.eb.SendNotification(span, notification)
 	if err != nil {
 		return err
 	}
