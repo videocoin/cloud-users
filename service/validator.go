@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/VideoCoin/cloud-api/rpc"
+	"github.com/videocoin/cloud-api/rpc"
 	enLocale "github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	validator "gopkg.in/go-playground/validator.v9"

@@ -3,11 +3,11 @@ package service
 import (
 	"context"
 
-	notificationv1 "github.com/VideoCoin/cloud-api/notifications/v1"
-	v1 "github.com/VideoCoin/cloud-api/users/v1"
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
-	"github.com/opentracing/opentracing-go"
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
+	notificationv1 "github.com/videocoin/cloud-api/notifications/v1"
+	v1 "github.com/videocoin/cloud-api/users/v1"
 )
 
 type NotificationClient struct {

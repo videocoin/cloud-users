@@ -1,3 +1,6 @@
+
+.PHONY: deploy
+
 GOOS?=linux
 GOARCH?=amd64
 
@@ -26,7 +29,7 @@ docker-build:
 	docker build -t gcr.io/${GCP_PROJECT}/${NAME}:${VERSION} -f Dockerfile .
 
 docker-push:
-	gcloud docker -- push gcr.io/${GCP_PROJECT}/${NAME}:${VERSION}
+	docker push gcr.io/${GCP_PROJECT}/${NAME}:${VERSION}
 
 dbm-status:
 	goose -dir migrations -table ${NAME} mysql "${DBM_MSQLURI}" status
@@ -37,7 +40,7 @@ dbm-up:
 dbm-down:
 	goose -dir migrations -table ${NAME} mysql "${DBM_MSQLURI}" down
 
-release: build docker-build docker-push
+release: docker-build docker-push
 
 deploy:
 	ENV=${ENV} deploy/deploy.sh

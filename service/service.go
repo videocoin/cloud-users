@@ -1,9 +1,9 @@
 package service
 
 import (
-	accountsv1 "github.com/VideoCoin/cloud-api/accounts/v1"
-	"github.com/VideoCoin/cloud-pkg/grpcutil"
-	"github.com/VideoCoin/cloud-pkg/mqmux"
+	accountsv1 "github.com/videocoin/cloud-api/accounts/v1"
+	"github.com/videocoin/cloud-pkg/grpcutil"
+	"github.com/videocoin/cloud-pkg/mqmux"
 	"google.golang.org/grpc"
 )
 

@@ -8,10 +8,10 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/opentracing/opentracing-go"
 
-	v1 "github.com/VideoCoin/cloud-api/users/v1"
-	"github.com/VideoCoin/cloud-pkg/dbutil"
-	"github.com/VideoCoin/cloud-pkg/uuid4"
 	"github.com/jinzhu/gorm"
+	v1 "github.com/videocoin/cloud-api/users/v1"
+	"github.com/videocoin/cloud-pkg/dbutil"
+	"github.com/videocoin/cloud-pkg/uuid4"
 )
 
 var (

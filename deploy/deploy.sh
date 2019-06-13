@@ -1,9 +1,9 @@
 #!/bin/bash
 
 readonly CHART_NAME=users
-readonly CHART_DIR=./helm
+readonly CHART_DIR=./deploy/helm
 
-CONSUL_ADDR=${CONSUL_ADDR:=127.0.0.1:8500}
+CONSUL_ADDR="${CONSUL_ADDR:=127.0.0.1:8500}"
 ENV=${ENV:=dev}
 VERSION=${VERSION:=`git describe --abbrev=0`-`git rev-parse --short HEAD`}
 
@@ -57,6 +57,17 @@ function get_vars() {
     readonly SECRET=`consul kv get -http-addr=${CONSUL_ADDR} config/${ENV}/services/${CHART_NAME}/secrets/secret`
 }
 
+function get_vars_ci() {
+    log_info "Getting ci variables..."
+    readonly KUBE_CONTEXT=`curl --silent --user ${CONSUL_AUTH} http://consul.${ENV}.videocoin.network/v1/kv/config/${ENV}/common/kube_context?raw`
+    readonly ACCOUNTS_RPC_ADDR=`curl --silent --user ${CONSUL_AUTH} http://consul.${ENV}.videocoin.network/v1/kv/config/${ENV}/services/${CHART_NAME}/vars/accountsRpcAddr?raw `
+    readonly SENTRY_DSN=`curl --silent --user ${CONSUL_AUTH} http://consul.${ENV}.videocoin.network/v1/kv/config/${ENV}/services/${CHART_NAME}/secrets/sentryDsn?raw`
+    readonly DB_URI=`curl --silent --user ${CONSUL_AUTH} http://consul.${ENV}.videocoin.network/v1/kv/config/${ENV}/services/${CHART_NAME}/secrets/dbUri?raw`
+    readonly MQ_URI=`curl --silent --user ${CONSUL_AUTH} http://consul.${ENV}.videocoin.network/v1/kv/config/${ENV}/services/${CHART_NAME}/secrets/mqUri?raw`
+    readonly RECOVERY_SECRET=`curl --silent --user ${CONSUL_AUTH} http://consul.${ENV}.videocoin.network/v1/kv/config/${ENV}/services/${CHART_NAME}/secrets/recoverySecret?raw`
+    readonly SECRET=`curl --silent --user ${CONSUL_AUTH} http://consul.${ENV}.videocoin.network/v1/kv/config/${ENV}/services/${CHART_NAME}/secrets/secret?raw`
+}
+
 function deploy() {
     log_info "Deploying ${CHART_NAME} version ${VERSION}"
     helm upgrade \
@@ -87,7 +98,12 @@ if ! $(has_helm); then
     exit 1
 fi
 
-get_vars
+if [ "${CI_ENABLED}" = "1" ]; then
+  get_vars_ci
+else
+  get_vars
+fi
+
 update_deps
 deploy
 

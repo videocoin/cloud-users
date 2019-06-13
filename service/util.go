@@ -10,9 +10,9 @@ import (
 	"errors"
 	"time"
 
-	v1 "github.com/VideoCoin/cloud-api/users/v1"
 	"github.com/dchest/authcookie"
 	"github.com/opentracing/opentracing-go"
+	v1 "github.com/videocoin/cloud-api/users/v1"
 	"golang.org/x/crypto/bcrypt"
 )
 

@@ -4,8 +4,21 @@ setup_remote_docker: &setup_remote_docker
   exclusive: true
   docker_layer_caching: true
 
+docker_login: &docker_login
+  name: docker login
+  command: |
+    docker login -u _json_key -p "$GCLOUD_SERVICE_KEY" https://gcr.io
+
+gcloud_auth: &gcloud_auth
+  name: gcloud auth
+  command: |
+    echo $GCLOUD_SERVICE_KEY | gcloud auth activate-service-account --key-file=-
+
 base_docker_image: &base_docker_image
   - image: gcr.io/videocoin-network/cloud-base-ci:1.0
+    auth:
+      username: _json_key
+      password: $GCLOUD_SERVICE_KEY
 
 restore_repo: &restore_repo
   restore_cache:
@@ -15,7 +28,7 @@ restore_repo: &restore_repo
       - v1-repo
 
 defaults: &defaults
-  working_directory: /go/src/github.com/VideoCoin/cloud-users
+  working_directory: /go/src/github.com/videocoin/cloud-users
   docker: *base_docker_image
 
 version: 2
@@ -28,9 +41,10 @@ jobs:
       - setup_remote_docker:
           <<: *setup_remote_docker
       - run:
-          name: build
+          <<: *docker_login
+      - run:
+          name: release
           command: |
-            make deps
             make release
       - save_cache:
           key: v1-repo-{{ .Branch }}-{{ .Revision }}
@@ -43,24 +57,24 @@ jobs:
       - setup_remote_docker:
           <<: *setup_remote_docker
       - run:
-          name: activate service account
-          command: |
-            echo $GCLOUD_SERVICE_KEY | gcloud auth activate-service-account --key-file=-
+          <<: *gcloud_auth
       - run:
           name: init environment
           command: |
             if [ $CIRCLE_BRANCH = 'develop' ]; then
               gcloud container clusters get-credentials thor --zone us-central1-a --project videocoin-network
               echo 'export ENV="thor"' >> $BASH_ENV
+              echo 'export CONSUL_AUTH=$CONSUL_AUTH_THOR' >> $BASH_ENV
             fi
 
             if [ $CIRCLE_BRANCH = 'staging' ]; then
-              gcloud container clusters get-credentials hulk --zone us-central1-a --project videocoin-network
-              echo 'export ENV="hulk"' >> $BASH_ENV
+              gcloud container clusters get-credentials groot --zone us-central1-a --project videocoin-network
+              echo 'export ENV="groot"' >> $BASH_ENV
+              echo 'export CONSUL_AUTH=$CONSUL_AUTH_GROOT' >> $BASH_ENV
             fi
 
             helm init --client-only
-
+      - run:
           name: deploy binary
           command: |
             make deploy

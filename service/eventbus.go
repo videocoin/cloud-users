@@ -1,9 +1,9 @@
 package service
 
 import (
-	accountsv1 "github.com/VideoCoin/cloud-api/accounts/v1"
-	notificationv1 "github.com/VideoCoin/cloud-api/notifications/v1"
-	"github.com/VideoCoin/cloud-pkg/mqmux"
+	accountsv1 "github.com/videocoin/cloud-api/accounts/v1"
+	notificationv1 "github.com/videocoin/cloud-api/notifications/v1"
+	"github.com/videocoin/cloud-pkg/mqmux"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/sirupsen/logrus"
