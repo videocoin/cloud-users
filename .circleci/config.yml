@@ -89,5 +89,5 @@ workflows:
           filters:
             branches:
               only:
-                - staging
                 - develop
+                - staging
