@@ -20,9 +20,9 @@ import (
 )
 
 type RpcServerOptions struct {
-	Addr           string
-	Secret         string
-	RecoverySecret string
+	Addr               string
+	AuthTokenSecret    string
+	AuthRecoverySecret string
 
 	Logger   *logrus.Entry
 	DS       *Datastore
@@ -31,9 +31,9 @@ type RpcServerOptions struct {
 }
 
 type RpcServer struct {
-	addr           string
-	secret         string
-	recoverySecret string
+	addr               string
+	authTokenSecret    string
+	authRecoverySecret string
 
 	grpc          *grpc.Server
 	listen        net.Listener
@@ -61,17 +61,17 @@ func NewRpcServer(opts *RpcServerOptions) (*RpcServer, error) {
 	}
 
 	rpcServer := &RpcServer{
-		addr:           opts.Addr,
-		secret:         opts.Secret,
-		recoverySecret: opts.RecoverySecret,
-		grpc:           grpcServer,
-		listen:         listen,
-		logger:         opts.Logger,
-		ds:             opts.DS,
-		eb:             opts.EB,
-		accounts:       opts.Accounts,
-		notifications:  nc,
-		validator:      newRequestValidator(),
+		addr:               opts.Addr,
+		authTokenSecret:    opts.AuthTokenSecret,
+		authRecoverySecret: opts.AuthRecoverySecret,
+		grpc:               grpcServer,
+		listen:             listen,
+		logger:             opts.Logger,
+		ds:                 opts.DS,
+		eb:                 opts.EB,
+		accounts:           opts.Accounts,
+		notifications:      nc,
+		validator:          newRequestValidator(),
 	}
 
 	v1.RegisterUserServiceServer(grpcServer, rpcServer)
@@ -89,7 +89,7 @@ func (s *RpcServer) Health(ctx context.Context, req *protoempty.Empty) (*rpc.Hea
 	return &rpc.HealthStatus{Status: "OK"}, nil
 }
 
-func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.LoginUserResponse, error) {
+func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.TokenResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Create")
 	defer span.Finish()
 
@@ -119,7 +119,7 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 		return nil, rpc.ErrRpcInternal
 	}
 
-	token, err := s.createToken(ctx, user)
+	token, err := s.createToken(ctx, user, v1.TokenTypeRegular)
 	if err != nil {
 		s.logger.Error(err)
 		return nil, rpc.ErrRpcInternal
@@ -139,12 +139,12 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 		s.logger.WithField("failed to send whitelisted email to user id", user.Id).Error(err)
 	}
 
-	return &v1.LoginUserResponse{
+	return &v1.TokenResponse{
 		Token: token,
 	}, nil
 }
 
-func (s *RpcServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.LoginUserResponse, error) {
+func (s *RpcServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.TokenResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Login")
 	defer span.Finish()
 
@@ -169,7 +169,7 @@ func (s *RpcServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.Lo
 		return nil, rpc.ErrRpcUnauthenticated
 	}
 
-	token, err := s.createToken(ctx, user)
+	token, err := s.createToken(ctx, user, v1.TokenTypeRegular)
 	if err != nil {
 		s.logger.Error(err)
 		return nil, rpc.ErrRpcInternal
@@ -180,7 +180,7 @@ func (s *RpcServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.Lo
 		return nil, rpc.ErrRpcInternal
 	}
 
-	return &v1.LoginUserResponse{
+	return &v1.TokenResponse{
 		Token: user.Token,
 	}, nil
 }
@@ -221,7 +221,7 @@ func (s *RpcServer) StartRecovery(ctx context.Context, req *v1.StartRecoveryUser
 		return nil, rpc.ErrRpcInternal
 	}
 
-	token := newRecoveryToken(req.Email, 12*time.Hour, []byte(user.Password), []byte(s.recoverySecret))
+	token := newRecoveryToken(req.Email, 12*time.Hour, []byte(user.Password), []byte(s.authRecoverySecret))
 
 	if err = s.notifications.SendEmailRecovery(ctx, user, token); err != nil {
 		s.logger.WithField("failed to send recovery email to user id", user.Id).Error(err)
@@ -239,7 +239,7 @@ func (s *RpcServer) Recover(ctx context.Context, req *v1.RecoverUserRequest) (*p
 		return nil, rpc.NewRpcValidationError(verr)
 	}
 
-	user, err := verifyRecoveryToken(ctx, req.Token, s.ds.User.GetByEmail, []byte(s.recoverySecret))
+	user, err := verifyRecoveryToken(ctx, req.Token, s.ds.User.GetByEmail, []byte(s.authRecoverySecret))
 	if err != nil {
 		s.logger.Errorf("failed to get user: %s", err)
 		if err == ErrUserNotFound {
@@ -354,20 +354,97 @@ func (s *RpcServer) Activate(ctx context.Context, req *v1.UserRequest) (*protoem
 	return new(protoempty.Empty), nil
 }
 
-func (s *RpcServer) createToken(ctx context.Context, user *v1.User) (string, error) {
+func (s *RpcServer) ListApiTokens(ctx context.Context, req *protoempty.Empty) (*v1.UserApiListResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ListApiTokens")
+	defer span.Finish()
+
+	user, _, err := s.authenticate(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	tokens, err := s.ds.Token.ListByUser(ctx, user.Id)
+	if err != nil {
+		return nil, rpc.ErrRpcInternal
+	}
+
+	tokensResponse := []*v1.UserApiTokenResponse{}
+	if err = copier.Copy(&tokensResponse, tokens); err != nil {
+		return nil, rpc.ErrRpcInternal
+	}
+
+	return &v1.UserApiListResponse{
+		Items: tokensResponse,
+	}, nil
+}
+
+func (s *RpcServer) CreateApiToken(ctx context.Context, req *v1.UserApiTokenRequest) (*v1.CreateUserApiTokenResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "CreateApiToken")
+	defer span.Finish()
+
+	span.LogKV("name", req.Name)
+
+	user, ctx, err := s.authenticate(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := s.createToken(ctx, user, v1.TokenTypeAPI)
+	if err != nil {
+		s.logger.Errorf("failed to create api token: %s", err)
+		return nil, rpc.ErrRpcInternal
+	}
+
+	apiToken, err := s.ds.Token.Create(ctx, user.Id, req.Name, token)
+	if err != nil {
+		s.logger.Errorf("failed to create api token record: %s", err)
+		return nil, rpc.ErrRpcInternal
+	}
+
+	return &v1.CreateUserApiTokenResponse{
+		Id:    apiToken.Id,
+		Name:  apiToken.Name,
+		Token: apiToken.Token,
+	}, nil
+}
+
+func (s *RpcServer) DeleteApiToken(ctx context.Context, req *v1.UserApiTokenRequest) (*protoempty.Empty, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "DeleteApiToken")
+	defer span.Finish()
+
+	span.LogKV("token id", req.Id)
+
+	_, ctx, err := s.authenticate(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.ds.Token.Delete(ctx, req.Id)
+	if err != nil {
+		s.logger.Errorf("failed to delete api token record: %s", err)
+		return nil, rpc.ErrRpcInternal
+	}
+
+	return new(protoempty.Empty), nil
+}
+
+func (s *RpcServer) createToken(ctx context.Context, user *v1.User, tokenType v1.TokenType) (string, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "createToken")
 	defer span.Finish()
 
 	span.LogKV("id", user.Id, "email", user.Email)
 
-	claims := jwt.StandardClaims{
-		Subject:   user.Id,
-		ExpiresAt: time.Now().Add(time.Hour * 72).Unix(),
+	claims := auth.ExtendedClaims{
+		IsApi: tokenType == v1.TokenTypeAPI,
+		StandardClaims: jwt.StandardClaims{
+			Subject:   user.Id,
+			ExpiresAt: time.Now().Add(time.Hour * 72).Unix(),
+		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	t, err := token.SignedString([]byte(s.secret))
+	t, err := token.SignedString([]byte(s.authTokenSecret))
 	if err != nil {
 		return "", err
 	}
@@ -379,10 +456,14 @@ func (s *RpcServer) authenticate(ctx context.Context) (*v1.User, context.Context
 	span, _ := opentracing.StartSpanFromContext(ctx, "authenticate")
 	defer span.Finish()
 
-	ctx = auth.NewContextWithSecretKey(ctx, s.secret)
+	ctx = auth.NewContextWithSecretKey(ctx, s.authTokenSecret)
 	ctx, err := auth.AuthFromContext(ctx)
 	if err != nil {
 		return nil, ctx, rpc.ErrRpcUnauthenticated
+	}
+
+	if s.getTokenType(ctx) == v1.TokenTypeAPI {
+		return nil, nil, rpc.ErrRpcPermissionDenied
 	}
 
 	userID, ok := auth.UserIDFromContext(ctx)
@@ -400,4 +481,13 @@ func (s *RpcServer) authenticate(ctx context.Context) (*v1.User, context.Context
 	}
 
 	return user, ctx, nil
+}
+
+func (s *RpcServer) getTokenType(ctx context.Context) v1.TokenType {
+	isApiToken, ok := auth.ApiFromContext(ctx)
+	if ok && isApiToken {
+		return v1.TokenTypeAPI
+	}
+
+	return v1.TokenTypeRegular
 }

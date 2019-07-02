@@ -6,7 +6,8 @@ import (
 )
 
 type Datastore struct {
-	User *UserDatastore
+	User  *UserDatastore
+	Token *TokenDatastore
 }
 
 func NewDatastore(uri string) (*Datastore, error) {
@@ -25,6 +26,13 @@ func NewDatastore(uri string) (*Datastore, error) {
 	}
 
 	ds.User = userDs
+
+	tokenDs, err := NewTokenDatastore(db)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.Token = tokenDs
 
 	return ds, nil
 }
