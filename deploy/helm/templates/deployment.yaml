@@ -47,16 +47,16 @@ spec:
                 secretKeyRef:
                   name: {{ .Chart.Name }}
                   key: mqUri
-            - name: SECRET
+            - name: AUTH_TOKEN_SECRET
               valueFrom:
                 secretKeyRef:
                   name: {{ .Chart.Name }}
-                  key: secret
-            - name: RECOVERYSECRET
+                  key: authTokenSecret
+            - name: AUTH_RECOVERY_SECRET
               valueFrom:
                 secretKeyRef:
                   name: {{ .Chart.Name }}
-                  key: recoverySecret
+                  key: authRecoverySecret
             - name: SENTRY_DSN
               valueFrom:
                 secretKeyRef:

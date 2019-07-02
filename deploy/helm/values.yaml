@@ -30,6 +30,6 @@ resources:
 secrets:
   dbUri: ""
   mqUri: ""
-  secret: ""
-  recoverySecret: ""
+  authTokenSecret: ""
+  authRecoverySecret: ""
   sentryDsn: ""
