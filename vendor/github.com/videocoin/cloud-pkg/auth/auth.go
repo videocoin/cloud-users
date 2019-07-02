@@ -13,6 +13,13 @@ var (
 	ErrInvalidToken  = errors.New("invalid token")
 )
 
+type TokenType int32
+
+type ExtendedClaims struct {
+	Type TokenType `json:"token_type"`
+	jwt.StandardClaims
+}
+
 func AuthFromContext(ctx context.Context) (context.Context, error) {
 	secret, ok := SecretKeyFromContext(ctx)
 	if !ok {
@@ -24,7 +31,7 @@ func AuthFromContext(ctx context.Context) (context.Context, error) {
 		return ctx, ErrInvalidToken
 	}
 
-	t, err := jwt.ParseWithClaims(jwtToken, &jwt.StandardClaims{}, func(t *jwt.Token) (interface{}, error) {
+	t, err := jwt.ParseWithClaims(jwtToken, &ExtendedClaims{}, func(t *jwt.Token) (interface{}, error) {
 		return []byte(secret), nil
 	})
 
@@ -36,7 +43,8 @@ func AuthFromContext(ctx context.Context) (context.Context, error) {
 		return ctx, ErrInvalidToken
 	}
 
-	ctx = NewContextWithUserID(ctx, t.Claims.(*jwt.StandardClaims).Subject)
+	ctx = NewContextWithUserID(ctx, t.Claims.(*ExtendedClaims).Subject)
+	ctx = NewContextWithType(ctx, t.Claims.(*ExtendedClaims).Type)
 
 	return ctx, nil
 }

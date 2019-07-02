@@ -10,6 +10,7 @@ import (
 	golang_proto "github.com/golang/protobuf/proto"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -243,14 +244,7 @@ func (m *Notification) Size() (n int) {
 }
 
 func sovNotifications(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozNotifications(x uint64) (n int) {
 	return sovNotifications(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -270,7 +264,7 @@ func (m *Notification) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -298,7 +292,7 @@ func (m *Notification) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Target |= (NotificationTarget(b) & 0x7F) << shift
+				m.Target |= NotificationTarget(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -317,7 +311,7 @@ func (m *Notification) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -327,6 +321,9 @@ func (m *Notification) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthNotifications
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthNotifications
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -346,7 +343,7 @@ func (m *Notification) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -355,6 +352,9 @@ func (m *Notification) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthNotifications
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthNotifications
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -375,7 +375,7 @@ func (m *Notification) Unmarshal(dAtA []byte) error {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					wire |= (uint64(b) & 0x7F) << shift
+					wire |= uint64(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
@@ -392,7 +392,7 @@ func (m *Notification) Unmarshal(dAtA []byte) error {
 						}
 						b := dAtA[iNdEx]
 						iNdEx++
-						stringLenmapkey |= (uint64(b) & 0x7F) << shift
+						stringLenmapkey |= uint64(b&0x7F) << shift
 						if b < 0x80 {
 							break
 						}
@@ -402,6 +402,9 @@ func (m *Notification) Unmarshal(dAtA []byte) error {
 						return ErrInvalidLengthNotifications
 					}
 					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthNotifications
+					}
 					if postStringIndexmapkey > l {
 						return io.ErrUnexpectedEOF
 					}
@@ -418,7 +421,7 @@ func (m *Notification) Unmarshal(dAtA []byte) error {
 						}
 						b := dAtA[iNdEx]
 						iNdEx++
-						stringLenmapvalue |= (uint64(b) & 0x7F) << shift
+						stringLenmapvalue |= uint64(b&0x7F) << shift
 						if b < 0x80 {
 							break
 						}
@@ -428,6 +431,9 @@ func (m *Notification) Unmarshal(dAtA []byte) error {
 						return ErrInvalidLengthNotifications
 					}
 					postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+					if postStringIndexmapvalue < 0 {
+						return ErrInvalidLengthNotifications
+					}
 					if postStringIndexmapvalue > l {
 						return io.ErrUnexpectedEOF
 					}
@@ -457,6 +463,9 @@ func (m *Notification) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthNotifications
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthNotifications
 			}
 			if (iNdEx + skippy) > l {
@@ -526,8 +535,11 @@ func skipNotifications(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			iNdEx += length
 			if length < 0 {
+				return 0, ErrInvalidLengthNotifications
+			}
+			iNdEx += length
+			if iNdEx < 0 {
 				return 0, ErrInvalidLengthNotifications
 			}
 			return iNdEx, nil
@@ -558,6 +570,9 @@ func skipNotifications(dAtA []byte) (n int, err error) {
 					return 0, err
 				}
 				iNdEx = start + next
+				if iNdEx < 0 {
+					return 0, ErrInvalidLengthNotifications
+				}
 			}
 			return iNdEx, nil
 		case 4:
