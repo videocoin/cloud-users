@@ -13,6 +13,8 @@ import (
 	golang_proto "github.com/golang/protobuf/proto"
 	rpc "github.com/videocoin/cloud-api/rpc"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -91,6 +93,14 @@ func (c *notificationServiceClient) Health(ctx context.Context, in *types.Empty,
 // NotificationServiceServer is the server API for NotificationService service.
 type NotificationServiceServer interface {
 	Health(context.Context, *types.Empty) (*rpc.HealthStatus, error)
+}
+
+// UnimplementedNotificationServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedNotificationServiceServer struct {
+}
+
+func (*UnimplementedNotificationServiceServer) Health(ctx context.Context, req *types.Empty) (*rpc.HealthStatus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Health not implemented")
 }
 
 func RegisterNotificationServiceServer(s *grpc.Server, srv NotificationServiceServer) {
