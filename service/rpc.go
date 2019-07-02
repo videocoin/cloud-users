@@ -432,10 +432,10 @@ func (s *RpcServer) createToken(ctx context.Context, user *v1.User, tokenType v1
 	span, _ := opentracing.StartSpanFromContext(ctx, "createToken")
 	defer span.Finish()
 
-	span.LogKV("id", user.Id, "email", user.Email)
+	span.LogKV("id", user.Id, "email", user.Email, "token_type", tokenType)
 
 	claims := auth.ExtendedClaims{
-		IsApi: tokenType == v1.TokenTypeAPI,
+		Type: auth.TokenType(tokenType),
 		StandardClaims: jwt.StandardClaims{
 			Subject:   user.Id,
 			ExpiresAt: time.Now().Add(time.Hour * 72).Unix(),
@@ -462,7 +462,7 @@ func (s *RpcServer) authenticate(ctx context.Context) (*v1.User, context.Context
 		return nil, ctx, rpc.ErrRpcUnauthenticated
 	}
 
-	if s.getTokenType(ctx) == v1.TokenTypeAPI {
+	if s.getTokenType(ctx) == auth.TokenType(v1.TokenTypeAPI) {
 		return nil, nil, rpc.ErrRpcPermissionDenied
 	}
 
@@ -483,11 +483,11 @@ func (s *RpcServer) authenticate(ctx context.Context) (*v1.User, context.Context
 	return user, ctx, nil
 }
 
-func (s *RpcServer) getTokenType(ctx context.Context) v1.TokenType {
-	isApiToken, ok := auth.ApiFromContext(ctx)
-	if ok && isApiToken {
-		return v1.TokenTypeAPI
+func (s *RpcServer) getTokenType(ctx context.Context) auth.TokenType {
+	tokenType, ok := auth.TypeFromContext(ctx)
+	if !ok {
+		return auth.TokenType(v1.TokenTypeRegular)
 	}
 
-	return v1.TokenTypeRegular
+	return tokenType
 }
