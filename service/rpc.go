@@ -93,7 +93,8 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Create")
 	defer span.Finish()
 
-	span.LogKV("email", req.Email, "name", req.Name)
+	span.SetTag("email", req.Email)
+	span.SetTag("name", req.Name)
 
 	if verr := s.validator.validate(req); verr != nil {
 		s.logger.Error(verr)
@@ -148,7 +149,7 @@ func (s *RpcServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.To
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Login")
 	defer span.Finish()
 
-	span.LogKV("email", req.Email)
+	span.SetTag("email", req.Email)
 
 	if verr := s.validator.validate(req); verr != nil {
 		s.logger.Error(verr)
@@ -204,7 +205,7 @@ func (s *RpcServer) StartRecovery(ctx context.Context, req *v1.StartRecoveryUser
 	span, ctx := opentracing.StartSpanFromContext(ctx, "StartRecovery")
 	defer span.Finish()
 
-	span.LogKV("email", req.Email)
+	span.SetTag("email", req.Email)
 
 	if verr := s.validator.validate(req); verr != nil {
 		s.logger.Error(verr)
@@ -382,7 +383,7 @@ func (s *RpcServer) CreateApiToken(ctx context.Context, req *v1.UserApiTokenRequ
 	span, ctx := opentracing.StartSpanFromContext(ctx, "CreateApiToken")
 	defer span.Finish()
 
-	span.LogKV("name", req.Name)
+	span.SetTag("name", req.Name)
 
 	user, ctx, err := s.authenticate(ctx)
 	if err != nil {
@@ -412,7 +413,7 @@ func (s *RpcServer) DeleteApiToken(ctx context.Context, req *v1.UserApiTokenRequ
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DeleteApiToken")
 	defer span.Finish()
 
-	span.LogKV("token id", req.Id)
+	span.SetTag("token id", req.Id)
 
 	_, ctx, err := s.authenticate(ctx)
 	if err != nil {
@@ -432,7 +433,9 @@ func (s *RpcServer) createToken(ctx context.Context, user *v1.User, tokenType v1
 	span, _ := opentracing.StartSpanFromContext(ctx, "createToken")
 	defer span.Finish()
 
-	span.LogKV("id", user.Id, "email", user.Email, "token_type", tokenType)
+	span.SetTag("id", user.Id)
+	span.SetTag("email", user.Email)
+	span.SetTag("token_type", tokenType)
 
 	claims := auth.ExtendedClaims{
 		Type: auth.TokenType(tokenType),

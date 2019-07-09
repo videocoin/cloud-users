@@ -56,7 +56,7 @@ func (ds *UserDatastore) GetByEmail(ctx context.Context, email string) (*v1.User
 	span, _ := opentracing.StartSpanFromContext(ctx, "GetByEmail")
 	defer span.Finish()
 
-	span.LogKV("email", email)
+	span.SetTag("email", email)
 
 	user := &v1.User{}
 
@@ -89,7 +89,8 @@ func (ds *UserDatastore) Register(ctx context.Context, email, name, password str
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Register")
 	defer span.Finish()
 
-	span.LogKV("email", email, "name", name)
+	span.SetTag("email", email)
+	span.SetTag("name", name)
 
 	tx := ds.db.Begin()
 
@@ -146,7 +147,7 @@ func (ds *UserDatastore) ResetPassword(ctx context.Context, user *v1.User, passw
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Recover")
 	defer span.Finish()
 
-	span.LogKV("email", user.Email)
+	span.SetTag("email", user.Email)
 
 	passwordHash, _ := hashPassword(ctx, password)
 	user.Password = passwordHash

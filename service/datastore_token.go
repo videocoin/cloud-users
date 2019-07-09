@@ -25,7 +25,8 @@ func (ds *TokenDatastore) Create(ctx context.Context, userId, name, token string
 	span, _ := opentracing.StartSpanFromContext(ctx, "Create")
 	defer span.Finish()
 
-	span.LogKV("user_id", userId, "name", name)
+	span.SetTag("user_id", userId)
+	span.SetTag("name", name)
 
 	tx := ds.db.Begin()
 
@@ -63,7 +64,7 @@ func (ds *TokenDatastore) ListByUser(ctx context.Context, userId string) ([]*v1.
 	span, _ := opentracing.StartSpanFromContext(ctx, "Delete")
 	defer span.Finish()
 
-	span.LogKV("user_id", userId)
+	span.SetTag("user_id", userId)
 
 	tokens := []*v1.UserApiToken{}
 
@@ -78,7 +79,7 @@ func (ds *TokenDatastore) Delete(ctx context.Context, tokenId string) error {
 	span, _ := opentracing.StartSpanFromContext(ctx, "Delete")
 	defer span.Finish()
 
-	span.LogKV("token_id", tokenId)
+	span.SetTag("token_id", tokenId)
 
 	apiToken := &v1.UserApiToken{
 		Id: tokenId,
