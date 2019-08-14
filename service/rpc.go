@@ -355,6 +355,31 @@ func (s *RpcServer) Activate(ctx context.Context, req *v1.UserRequest) (*protoem
 	return new(protoempty.Empty), nil
 }
 
+func (s *RpcServer) Key(ctx context.Context, req *v1.UserRequest) (*v1.KeyResponse, error) {
+	requester, ctx, err := s.authenticate(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if requester.Role < v1.UserRoleManager {
+		return nil, rpc.ErrRpcPermissionDenied
+	}
+
+	aReq := &accountsv1.AccountRequest{OwnerId: req.Id}
+	key, err := s.accounts.Key(ctx, aReq)
+	if err != nil {
+		s.logger.Errorf("failed to get key: %s", err)
+		return nil, rpc.ErrRpcNotFound
+
+	}
+
+	keyResp := &v1.KeyResponse{
+		Key: key.Key,
+	}
+
+	return keyResp, nil
+}
+
 func (s *RpcServer) ListApiTokens(ctx context.Context, req *protoempty.Empty) (*v1.UserApiListResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "ListApiTokens")
 	defer span.Finish()
