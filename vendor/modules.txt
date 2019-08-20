@@ -116,12 +116,12 @@ github.com/uber/jaeger-client-go/thrift-gen/agent
 github.com/uber/jaeger-client-go/thrift-gen/baggage
 # github.com/uber/jaeger-lib v2.0.0+incompatible
 github.com/uber/jaeger-lib/metrics
-# github.com/videocoin/cloud-api v0.1.172
+# github.com/videocoin/cloud-api v0.1.178
 github.com/videocoin/cloud-api/accounts/v1
 github.com/videocoin/cloud-api/notifications/v1
 github.com/videocoin/cloud-api/rpc
 github.com/videocoin/cloud-api/users/v1
-# github.com/videocoin/cloud-pkg v0.0.3-0.20190702184752-6d6f7da54f91
+# github.com/videocoin/cloud-pkg v0.0.5
 github.com/videocoin/cloud-pkg/logger
 github.com/videocoin/cloud-pkg/tracer
 github.com/videocoin/cloud-pkg/auth
