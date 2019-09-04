@@ -30,9 +30,9 @@ spec:
                   fieldPath: status.hostIP
             - name: JAEGER_AGENT_PORT
               value: "6831"
-            - name: USERS_RPCADDR
+            - name: RPC_ADDR
               value: 0.0.0.0:{{ .Values.service.internalRpcPort }}
-            - name: USERS_ACCOUNTSRPCADDR
+            - name: ACCOUNTS_RPC_ADDR
               valueFrom:
                 configMapKeyRef:
                   name: {{ .Chart.Name }}
