@@ -17,13 +17,14 @@ require (
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/sirupsen/logrus v1.4.2
 	github.com/streadway/amqp v0.0.0-20190404075320-75d898a42a94
-	github.com/videocoin/cloud-api v0.1.178
-	github.com/videocoin/cloud-pkg v0.0.5
+	github.com/videocoin/cloud-api v0.2.14
+	github.com/videocoin/cloud-pkg v0.0.6
 	golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8
 	google.golang.org/grpc v1.21.1
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	gopkg.in/go-playground/validator.v9 v9.29.0
 )
 
-// replace github.com/videocoin/cloud-api => ../cloud-api
-// replace github.com/videocoin/cloud-pkg => ../cloud-pkg
+replace github.com/videocoin/cloud-api => ../cloud-api
+
+replace github.com/videocoin/cloud-pkg => ../cloud-pkg
