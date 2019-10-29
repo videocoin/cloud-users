@@ -61,7 +61,6 @@ func (ds *TransferDatastore) Create(ctx context.Context, userId, address string,
 		Amount:    amount,
 		CreatedAt: &createdAt,
 		ExpiresAt: &expiresAt,
-		// ? amount ?
 	}
 
 	if err = tx.Create(transfer).Error; err != nil {

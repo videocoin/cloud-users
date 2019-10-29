@@ -503,10 +503,10 @@ func (s *RpcServer) Withdraw(ctx context.Context, req *v1.WithdrawRequest) (*pro
 		return nil, rpc.ErrRpcInternal
 	}
 
-	// if transfer.Pin != req.Pin {
-	// 	s.logger.Error("failed with incorrect pin")
-	// 	return nil, rpc.ErrRpcBadRequest
-	// }
+	if transfer.Pin != req.Pin {
+		s.logger.Error("failed with incorrect pin")
+		return nil, rpc.ErrRpcBadRequest
+	}
 
 	if transfer.ExpiresAt.Before(time.Now()) {
 		s.logger.Error("failed with expired transfer")
