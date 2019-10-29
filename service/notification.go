@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 	notificationv1 "github.com/videocoin/cloud-api/notifications/v1"
+	transferv1 "github.com/videocoin/cloud-api/transfers/v1"
 	v1 "github.com/videocoin/cloud-api/users/v1"
 )
 
@@ -48,7 +50,7 @@ func (c *NotificationClient) SendEmailWaitlisted(ctx context.Context, user *v1.U
 }
 
 func (c *NotificationClient) SendEmailWelcome(ctx context.Context, user *v1.User) error {
-	span, _ := opentracing.StartSpanFromContext(ctx, "Create")
+	span, _ := opentracing.StartSpanFromContext(ctx, "SendEmailWelcome")
 	defer span.Finish()
 
 	md := metautils.ExtractIncoming(ctx)
@@ -74,7 +76,7 @@ func (c *NotificationClient) SendEmailWelcome(ctx context.Context, user *v1.User
 }
 
 func (c *NotificationClient) SendEmailRecovery(ctx context.Context, user *v1.User, token string) error {
-	span, _ := opentracing.StartSpanFromContext(ctx, "Create")
+	span, _ := opentracing.StartSpanFromContext(ctx, "SendEmailRecovery")
 	defer span.Finish()
 
 	md := metautils.ExtractIncoming(ctx)
@@ -88,6 +90,34 @@ func (c *NotificationClient) SendEmailRecovery(ctx context.Context, user *v1.Use
 	notification := &notificationv1.Notification{
 		Target:   notificationv1.NotificationTarget_EMAIL,
 		Template: "user_recovery",
+		Params:   params,
+	}
+
+	err := c.eb.SendNotification(span, notification)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *NotificationClient) SendWithdrawTransfer(ctx context.Context, user *v1.User, transfer *transferv1.Transfer) error {
+	span, _ := opentracing.StartSpanFromContext(ctx, "SendWithdrawTransfer")
+	defer span.Finish()
+
+	md := metautils.ExtractIncoming(ctx)
+
+	params := map[string]string{
+		"to":      user.Email,
+		"address": transfer.ToAddress,
+		"amount":  fmt.Sprintf("%f", transfer.Amount),
+		"pin":     transfer.Pin,
+		"domain":  md.Get("x-forwarded-host"),
+	}
+
+	notification := &notificationv1.Notification{
+		Target:   notificationv1.NotificationTarget_EMAIL,
+		Template: "user_withdraw_confirmation",
 		Params:   params,
 	}
 

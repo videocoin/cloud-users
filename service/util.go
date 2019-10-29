@@ -12,8 +12,8 @@ import (
 
 	"github.com/dchest/authcookie"
 	"github.com/opentracing/opentracing-go"
-	v1 "github.com/videocoin/cloud-api/users/v1"
 	"golang.org/x/crypto/bcrypt"
+	v1 "github.com/videocoin/cloud-api/users/v1"
 )
 
 var MinTokenLength = authcookie.MinLength
@@ -23,6 +23,17 @@ var (
 	ErrExpiredToken   = errors.New("token expired")
 	ErrWrongSignature = errors.New("wrong token signature")
 )
+
+func checkPasswordHash(ctx context.Context, password, hash string) bool {
+	span, _ := opentracing.StartSpanFromContext(ctx, "checkPasswordHash")
+	defer span.Finish()
+
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+
+	span.LogKV("is equal", err == nil)
+
+	return err == nil
+}
 
 func getUserSecretKey(passwordHash, secret []byte) []byte {
 	m := hmac.New(sha256.New, secret)
@@ -103,23 +114,4 @@ func verifyRecoveryToken(ctx context.Context, token string, getUserFunc func(con
 	}
 
 	return
-}
-
-func hashPassword(ctx context.Context, password string) (string, error) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "hashPassword")
-	defer span.Finish()
-
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
-}
-
-func checkPasswordHash(ctx context.Context, password, hash string) bool {
-	span, _ := opentracing.StartSpanFromContext(ctx, "checkPasswordHash")
-	defer span.Finish()
-
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-
-	span.LogKV("is equal", err == nil)
-
-	return err == nil
 }

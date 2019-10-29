@@ -1,4 +1,4 @@
-package service
+package datastore
 
 import (
 	"context"
@@ -59,7 +59,6 @@ func (ds *UserDatastore) GetByEmail(ctx context.Context, email string) (*v1.User
 	span.SetTag("email", email)
 
 	user := &v1.User{}
-
 	if err := ds.db.Where("email = ?", email).First(user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrUserNotFound
@@ -73,7 +72,6 @@ func (ds *UserDatastore) GetByEmail(ctx context.Context, email string) (*v1.User
 
 func (ds *UserDatastore) GetByVerificationCode(code string) (*v1.User, error) {
 	user := &v1.User{}
-
 	if err := ds.db.Where("verification_code = ?", code).First(user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrUserNotFound

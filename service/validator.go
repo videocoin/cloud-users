@@ -5,9 +5,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/videocoin/cloud-api/rpc"
 	enLocale "github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
+	"github.com/videocoin/cloud-api/rpc"
 	validator "gopkg.in/go-playground/validator.v9"
 	enTrans "gopkg.in/go-playground/validator.v9/translations/en"
 )
@@ -46,6 +46,27 @@ func newRequestValidator() *requestValidator {
 
 	validate.RegisterValidation("confirm-password", ValidateConfirmPassword)
 	validate.RegisterValidation("secure-password", ValidateSecurePassword)
+
+	validate.RegisterTranslation(
+		"address",
+		*translator,
+		RegisterAddressTranslation,
+		AddressTranslation)
+	validate.RegisterTranslation(
+		"amount",
+		*translator,
+		RegisterAmountTranslation,
+		AmountTranslation)
+	validate.RegisterTranslation(
+		"pin",
+		*translator,
+		RegisterPinTranslation,
+		PinTranslation)
+	validate.RegisterTranslation(
+		"transfer_id",
+		*translator,
+		RegisterTransferIdTranslation,
+		TransferIdTranslation)
 
 	return &requestValidator{
 		validator:  validate,
@@ -153,6 +174,42 @@ func ValidateSecurePassword(fl validator.FieldLevel) bool {
 	}
 
 	return hasMinLen && hasNumber && hasLetter
+}
+
+func RegisterAddressTranslation(ut ut.Translator) error {
+	return ut.Add("address", "Enter a valid ethereum address", true)
+}
+
+func AddressTranslation(ut ut.Translator, fe validator.FieldError) string {
+	t, _ := ut.T("address", fe.Field())
+	return t
+}
+
+func RegisterAmountTranslation(ut ut.Translator) error {
+	return ut.Add("amount", "Enter a valid tokens amount", true)
+}
+
+func AmountTranslation(ut ut.Translator, fe validator.FieldError) string {
+	t, _ := ut.T("amount", fe.Field())
+	return t
+}
+
+func RegisterPinTranslation(ut ut.Translator) error {
+	return ut.Add("pin", "Enter a valid pin", true)
+}
+
+func PinTranslation(ut ut.Translator, fe validator.FieldError) string {
+	t, _ := ut.T("pin", fe.Field())
+	return t
+}
+
+func RegisterTransferIdTranslation(ut ut.Translator) error {
+	return ut.Add("transfer_id", "Enter a valid transfer id", true)
+}
+
+func TransferIdTranslation(ut ut.Translator, fe validator.FieldError) string {
+	t, _ := ut.T("transfer_id", fe.Field())
+	return t
 }
 
 func extractValueFromTag(tag string) string {
