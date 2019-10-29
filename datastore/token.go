@@ -1,4 +1,4 @@
-package service
+package datastore
 
 import (
 	"context"
@@ -61,13 +61,12 @@ func (ds *TokenDatastore) Create(ctx context.Context, userId, name, token string
 }
 
 func (ds *TokenDatastore) ListByUser(ctx context.Context, userId string) ([]*v1.UserApiToken, error) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "Delete")
+	span, _ := opentracing.StartSpanFromContext(ctx, "ListByUser")
 	defer span.Finish()
 
 	span.SetTag("user_id", userId)
 
 	tokens := []*v1.UserApiToken{}
-
 	if err := ds.db.Where("user_id = ?", userId).Find(&tokens).Error; err != nil {
 		return nil, fmt.Errorf("failed to get user api tokens: %s", err)
 	}
@@ -75,16 +74,16 @@ func (ds *TokenDatastore) ListByUser(ctx context.Context, userId string) ([]*v1.
 	return tokens, nil
 }
 
-func (ds *TokenDatastore) Delete(ctx context.Context, tokenId string) error {
+func (ds *TokenDatastore) Delete(ctx context.Context, id string) error {
 	span, _ := opentracing.StartSpanFromContext(ctx, "Delete")
 	defer span.Finish()
 
-	span.SetTag("token_id", tokenId)
+	span.SetTag("id", id)
 
-	apiToken := &v1.UserApiToken{
-		Id: tokenId,
+	token := &v1.UserApiToken{
+		Id: id,
 	}
-	if err := ds.db.Delete(apiToken).Error; err != nil {
+	if err := ds.db.Delete(token).Error; err != nil {
 		return fmt.Errorf("failed to delete user api token: %s", err)
 	}
 

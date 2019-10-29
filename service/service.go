@@ -4,6 +4,7 @@ import (
 	accountsv1 "github.com/videocoin/cloud-api/accounts/v1"
 	"github.com/videocoin/cloud-pkg/grpcutil"
 	"github.com/videocoin/cloud-pkg/mqmux"
+	"github.com/videocoin/cloud-users/datastore"
 	"google.golang.org/grpc"
 )
 
@@ -14,7 +15,7 @@ type Service struct {
 }
 
 func NewService(cfg *Config) (*Service, error) {
-	ds, err := NewDatastore(cfg.DBURI)
+	ds, err := datastore.NewDatastore(cfg.DBURI)
 	if err != nil {
 		return nil, err
 	}

@@ -1,13 +1,13 @@
 package service
 
 import (
-	accountsv1 "github.com/videocoin/cloud-api/accounts/v1"
-	notificationv1 "github.com/videocoin/cloud-api/notifications/v1"
-	"github.com/videocoin/cloud-pkg/mqmux"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
+	accountsv1 "github.com/videocoin/cloud-api/accounts/v1"
+	notificationv1 "github.com/videocoin/cloud-api/notifications/v1"
+	"github.com/videocoin/cloud-pkg/mqmux"
 )
 
 type EventBus struct {
@@ -42,10 +42,6 @@ func (e *EventBus) Stop() error {
 
 func (e *EventBus) registerPublishers() error {
 	if err := e.mq.Publisher("account/create"); err != nil {
-		return err
-	}
-
-	if err := e.mq.Publisher("notifications/send"); err != nil {
 		return err
 	}
 

@@ -8,13 +8,14 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 	protoempty "github.com/gogo/protobuf/types"
 	"github.com/jinzhu/copier"
-	"github.com/opentracing/opentracing-go"
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 	accountsv1 "github.com/videocoin/cloud-api/accounts/v1"
 	"github.com/videocoin/cloud-api/rpc"
 	v1 "github.com/videocoin/cloud-api/users/v1"
 	"github.com/videocoin/cloud-pkg/auth"
 	"github.com/videocoin/cloud-pkg/grpcutil"
+	"github.com/videocoin/cloud-users/datastore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -25,7 +26,7 @@ type RpcServerOptions struct {
 	AuthRecoverySecret string
 
 	Logger   *logrus.Entry
-	DS       *Datastore
+	DS       *datastore.Datastore
 	Accounts accountsv1.AccountServiceClient
 	EB       *EventBus
 }
@@ -38,7 +39,7 @@ type RpcServer struct {
 	grpc          *grpc.Server
 	listen        net.Listener
 	logger        *logrus.Entry
-	ds            *Datastore
+	ds            *datastore.Datastore
 	eb            *EventBus
 	accounts      accountsv1.AccountServiceClient
 	notifications *NotificationClient
@@ -90,9 +91,7 @@ func (s *RpcServer) Health(ctx context.Context, req *protoempty.Empty) (*rpc.Hea
 }
 
 func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.TokenResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "Create")
-	defer span.Finish()
-
+	span := opentracing.SpanFromContext(ctx)
 	span.SetTag("email", req.Email)
 	span.SetTag("name", req.Name)
 
@@ -104,8 +103,7 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 	user, err := s.ds.User.Register(ctx, req.Email, req.Name, req.Password)
 	if err != nil {
 		s.logger.Error(err)
-
-		if err == ErrUserAlreadyExists {
+		if err == datastore.ErrUserAlreadyExists {
 			respErr := &rpc.MultiValidationError{
 				Errors: []*rpc.ValidationError{
 					&rpc.ValidationError{
@@ -146,9 +144,7 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 }
 
 func (s *RpcServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.TokenResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "Login")
-	defer span.Finish()
-
+	span := opentracing.SpanFromContext(ctx)
 	span.SetTag("email", req.Email)
 
 	if verr := s.validator.validate(req); verr != nil {
@@ -159,7 +155,7 @@ func (s *RpcServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.To
 	user, err := s.ds.User.GetByEmail(ctx, req.Email)
 	if err != nil {
 		s.logger.Errorf("failed to get user: %s", err)
-		if err == ErrUserNotFound {
+		if err == datastore.ErrUserNotFound {
 			return nil, rpc.ErrRpcUnauthenticated
 		}
 
@@ -187,6 +183,8 @@ func (s *RpcServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.To
 }
 
 func (s *RpcServer) Logout(ctx context.Context, req *protoempty.Empty) (*protoempty.Empty, error) {
+	_ = opentracing.SpanFromContext(ctx)
+
 	user, _, err := s.authenticate(ctx)
 	if err != nil {
 		s.logger.Error(err)
@@ -202,9 +200,7 @@ func (s *RpcServer) Logout(ctx context.Context, req *protoempty.Empty) (*protoem
 }
 
 func (s *RpcServer) StartRecovery(ctx context.Context, req *v1.StartRecoveryUserRequest) (*protoempty.Empty, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "StartRecovery")
-	defer span.Finish()
-
+	span := opentracing.SpanFromContext(ctx)
 	span.SetTag("email", req.Email)
 
 	if verr := s.validator.validate(req); verr != nil {
@@ -214,7 +210,7 @@ func (s *RpcServer) StartRecovery(ctx context.Context, req *v1.StartRecoveryUser
 
 	user, err := s.ds.User.GetByEmail(ctx, req.Email)
 	if err != nil {
-		if err == ErrUserNotFound {
+		if err == datastore.ErrUserNotFound {
 			return nil, rpc.ErrRpcBadRequest
 		}
 
@@ -232,8 +228,7 @@ func (s *RpcServer) StartRecovery(ctx context.Context, req *v1.StartRecoveryUser
 }
 
 func (s *RpcServer) Recover(ctx context.Context, req *v1.RecoverUserRequest) (*protoempty.Empty, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "Recover")
-	defer span.Finish()
+	_ = opentracing.SpanFromContext(ctx)
 
 	if verr := s.validator.validate(req); verr != nil {
 		s.logger.Error(verr)
@@ -243,7 +238,7 @@ func (s *RpcServer) Recover(ctx context.Context, req *v1.RecoverUserRequest) (*p
 	user, err := verifyRecoveryToken(ctx, req.Token, s.ds.User.GetByEmail, []byte(s.authRecoverySecret))
 	if err != nil {
 		s.logger.Errorf("failed to get user: %s", err)
-		if err == ErrUserNotFound {
+		if err == datastore.ErrUserNotFound {
 			return nil, rpc.ErrRpcBadRequest
 		}
 
@@ -258,8 +253,7 @@ func (s *RpcServer) Recover(ctx context.Context, req *v1.RecoverUserRequest) (*p
 }
 
 func (s *RpcServer) ResetPassword(ctx context.Context, req *v1.ResetPasswordUserRequest) (*protoempty.Empty, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ResetPassword")
-	defer span.Finish()
+	_ = opentracing.SpanFromContext(ctx)
 
 	user, _, err := s.authenticate(ctx)
 	if err != nil {
@@ -274,6 +268,8 @@ func (s *RpcServer) ResetPassword(ctx context.Context, req *v1.ResetPasswordUser
 }
 
 func (s *RpcServer) Get(ctx context.Context, req *protoempty.Empty) (*v1.UserProfile, error) {
+	_ = opentracing.SpanFromContext(ctx)
+
 	user, ctx, err := s.authenticate(ctx)
 	if err != nil {
 		return nil, err
@@ -295,6 +291,8 @@ func (s *RpcServer) Get(ctx context.Context, req *protoempty.Empty) (*v1.UserPro
 }
 
 func (s *RpcServer) Whitelist(ctx context.Context, req *protoempty.Empty) (*v1.WhitelistResponse, error) {
+	_ = opentracing.SpanFromContext(ctx)
+
 	accounts, err := s.accounts.List(ctx, new(protoempty.Empty))
 	if err != nil {
 		s.logger.Errorf("failed to get whitelist: %s", err)
@@ -313,6 +311,8 @@ func (s *RpcServer) Whitelist(ctx context.Context, req *protoempty.Empty) (*v1.W
 }
 
 func (s *RpcServer) LookupByAddress(ctx context.Context, req *v1.LookupByAddressRequest) (*protoempty.Empty, error) {
+	_ = opentracing.SpanFromContext(ctx)
+
 	aReq := &accountsv1.Address{Address: req.Address}
 	_, err := s.accounts.GetByAddress(ctx, aReq)
 	if err != nil {
@@ -325,6 +325,8 @@ func (s *RpcServer) LookupByAddress(ctx context.Context, req *v1.LookupByAddress
 }
 
 func (s *RpcServer) Activate(ctx context.Context, req *v1.UserRequest) (*protoempty.Empty, error) {
+	_ = opentracing.SpanFromContext(ctx)
+
 	requester, ctx, err := s.authenticate(ctx)
 	if err != nil {
 		return nil, err
@@ -337,7 +339,7 @@ func (s *RpcServer) Activate(ctx context.Context, req *v1.UserRequest) (*protoem
 	user, err := s.ds.User.Get(req.Id)
 	if err != nil {
 		s.logger.Errorf("failed to get user: %s", err)
-		if err == ErrUserNotFound {
+		if err == datastore.ErrUserNotFound {
 			return nil, rpc.ErrRpcNotFound
 		}
 		return nil, rpc.ErrRpcInternal
@@ -356,6 +358,8 @@ func (s *RpcServer) Activate(ctx context.Context, req *v1.UserRequest) (*protoem
 }
 
 func (s *RpcServer) Key(ctx context.Context, req *v1.UserRequest) (*v1.KeyResponse, error) {
+	_ = opentracing.SpanFromContext(ctx)
+
 	requester, ctx, err := s.authenticate(ctx)
 	if err != nil {
 		return nil, err
@@ -381,8 +385,7 @@ func (s *RpcServer) Key(ctx context.Context, req *v1.UserRequest) (*v1.KeyRespon
 }
 
 func (s *RpcServer) ListApiTokens(ctx context.Context, req *protoempty.Empty) (*v1.UserApiListResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ListApiTokens")
-	defer span.Finish()
+	_ = opentracing.SpanFromContext(ctx)
 
 	user, _, err := s.authenticate(ctx)
 	if err != nil {
@@ -405,9 +408,7 @@ func (s *RpcServer) ListApiTokens(ctx context.Context, req *protoempty.Empty) (*
 }
 
 func (s *RpcServer) CreateApiToken(ctx context.Context, req *v1.UserApiTokenRequest) (*v1.CreateUserApiTokenResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "CreateApiToken")
-	defer span.Finish()
-
+	span := opentracing.SpanFromContext(ctx)
 	span.SetTag("name", req.Name)
 
 	user, ctx, err := s.authenticate(ctx)
@@ -435,10 +436,8 @@ func (s *RpcServer) CreateApiToken(ctx context.Context, req *v1.UserApiTokenRequ
 }
 
 func (s *RpcServer) DeleteApiToken(ctx context.Context, req *v1.UserApiTokenRequest) (*protoempty.Empty, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "DeleteApiToken")
-	defer span.Finish()
-
-	span.SetTag("token id", req.Id)
+	span := opentracing.SpanFromContext(ctx)
+	span.SetTag("id", req.Id)
 
 	_, ctx, err := s.authenticate(ctx)
 	if err != nil {
@@ -448,6 +447,80 @@ func (s *RpcServer) DeleteApiToken(ctx context.Context, req *v1.UserApiTokenRequ
 	err = s.ds.Token.Delete(ctx, req.Id)
 	if err != nil {
 		s.logger.Errorf("failed to delete api token record: %s", err)
+		return nil, rpc.ErrRpcInternal
+	}
+
+	return new(protoempty.Empty), nil
+}
+
+func (s *RpcServer) StartWithdraw(ctx context.Context, req *v1.StartWithdrawRequest) (*v1.WithdrawResponse, error) {
+	span := opentracing.SpanFromContext(ctx)
+	span.SetTag("address", req.Address)
+	span.SetTag("amount", req.Amount)
+
+	if verr := s.validator.validate(req); verr != nil {
+		s.logger.Error(verr)
+		return nil, rpc.NewRpcValidationError(verr)
+	}
+
+	user, ctx, err := s.authenticate(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	transfer, err := s.ds.Transfer.Create(ctx, user.Id, req.Address, req.Amount)
+	if err != nil {
+		s.logger.WithError(err).Error("failed to create transfer")
+		return nil, rpc.ErrRpcInternal
+	}
+
+	if err = s.notifications.SendWithdrawTransfer(ctx, user, transfer); err != nil {
+		s.logger.WithError(err).Error("failed to send withdraw transfer email")
+	}
+
+	return &v1.WithdrawResponse{
+		TransferId: transfer.Id,
+	}, nil
+}
+
+func (s *RpcServer) Withdraw(ctx context.Context, req *v1.WithdrawRequest) (*protoempty.Empty, error) {
+	span := opentracing.SpanFromContext(ctx)
+	span.SetTag("id", req.TransferId)
+
+	if verr := s.validator.validate(req); verr != nil {
+		s.logger.Error(verr)
+		return nil, rpc.NewRpcValidationError(verr)
+	}
+
+	user, ctx, err := s.authenticate(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	transfer, err := s.ds.Transfer.Get(ctx, req.TransferId)
+	if err != nil {
+		s.logger.WithError(err).Error("failed to get transfer")
+		return nil, rpc.ErrRpcInternal
+	}
+
+	// if transfer.Pin != req.Pin {
+	// 	s.logger.Error("failed with incorrect pin")
+	// 	return nil, rpc.ErrRpcBadRequest
+	// }
+
+	if transfer.ExpiresAt.Before(time.Now()) {
+		s.logger.Error("failed with expired transfer")
+		return nil, rpc.ErrRpcBadRequest
+	}
+
+	_, err = s.accounts.Withdraw(ctx,
+		&accountsv1.WithdrawRequest{
+			OwnerId:    user.Id,
+			TransferId: transfer.Id,
+		},
+	)
+	if err != nil {
+		s.logger.WithError(err).Error("failed to withdraw")
 		return nil, rpc.ErrRpcInternal
 	}
 
