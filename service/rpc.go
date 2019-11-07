@@ -560,8 +560,12 @@ func (s *RpcServer) createToken(ctx context.Context, user *v1.User, tokenType v1
 		Type: auth.TokenType(tokenType),
 		StandardClaims: jwt.StandardClaims{
 			Subject:   user.Id,
-			ExpiresAt: time.Now().Add(time.Hour * 24 * 365).Unix(),
+			ExpiresAt: time.Now().Add(time.Hour * 72).Unix(),
 		},
+	}
+
+	if tokenType == v1.TokenTypeAPI {
+		claims.StandardClaims.ExpiresAt = time.Now().Add(time.Hour * 24 * 365).Unix()
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
