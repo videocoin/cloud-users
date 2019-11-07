@@ -17,9 +17,9 @@ import (
 	"github.com/videocoin/cloud-pkg/grpcutil"
 	"github.com/videocoin/cloud-users/datastore"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/reflection"
 )
 
 type RpcServerOptions struct {
@@ -452,6 +452,28 @@ func (s *RpcServer) DeleteApiToken(ctx context.Context, req *v1.UserApiTokenRequ
 	return new(protoempty.Empty), nil
 }
 
+func (s *RpcServer) GetApiToken(ctx context.Context, req *v1.ApiTokenRequest) (*v1.UserApiTokenResponse, error) {
+	span := opentracing.SpanFromContext(ctx)
+	span.SetTag("token", req.Token)
+
+	if req.Token == "" {
+		return nil, rpc.ErrRpcNotFound
+	}
+
+	token, err := s.ds.Token.GetByToken(ctx, req.Token)
+	if err != nil {
+		if err == datastore.ErrTokenNotFound {
+			return nil, rpc.ErrRpcNotFound
+		}
+		return nil, rpc.ErrRpcInternal
+	}
+
+	return &v1.UserApiTokenResponse{
+		Id:   token.Id,
+		Name: token.Name,
+	}, nil
+}
+
 func (s *RpcServer) StartWithdraw(ctx context.Context, req *v1.StartWithdrawRequest) (*v1.WithdrawResponse, error) {
 	span := opentracing.SpanFromContext(ctx)
 	span.SetTag("address", req.Address)
@@ -538,7 +560,7 @@ func (s *RpcServer) createToken(ctx context.Context, user *v1.User, tokenType v1
 		Type: auth.TokenType(tokenType),
 		StandardClaims: jwt.StandardClaims{
 			Subject:   user.Id,
-			ExpiresAt: time.Now().Add(time.Hour * 72).Unix(),
+			ExpiresAt: time.Now().Add(time.Hour * 24 * 365).Unix(),
 		},
 	}
 
