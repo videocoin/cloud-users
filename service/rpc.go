@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"math/big"
 	"net"
 	"time"
 
@@ -489,7 +490,12 @@ func (s *RpcServer) StartWithdraw(ctx context.Context, req *v1.StartWithdrawRequ
 		return nil, err
 	}
 
-	transfer, err := s.ds.Transfer.Create(ctx, user.Id, req.Address, req.Amount)
+	amount := new(big.Int).SetBytes([]byte(req.Amount))
+	transfer, err := s.accounts.CreateTransfer(ctx, &accountsv1.CreateTransferRequest{
+		UserId:    user.Id,
+		ToAddress: req.Address,
+		Amount:    amount.Bytes(),
+	})
 	if err != nil {
 		s.logger.WithError(err).Error("failed to create transfer")
 		return nil, rpc.ErrRpcInternal
@@ -518,9 +524,10 @@ func (s *RpcServer) Withdraw(ctx context.Context, req *v1.WithdrawRequest) (*pro
 		return nil, err
 	}
 
-	transfer, err := s.ds.Transfer.Get(ctx, req.TransferId)
+	transfer, err := s.accounts.GetTransfer(ctx, &accountsv1.TransferRequest{
+		Id: req.TransferId,
+	})
 	if err != nil {
-		s.logger.WithError(err).Error("failed to get transfer")
 		return nil, rpc.ErrRpcInternal
 	}
 
@@ -534,10 +541,11 @@ func (s *RpcServer) Withdraw(ctx context.Context, req *v1.WithdrawRequest) (*pro
 		return nil, rpc.ErrRpcBadRequest
 	}
 
-	_, err = s.accounts.Withdraw(ctx,
-		&accountsv1.WithdrawRequest{
-			OwnerId:    user.Id,
-			TransferId: transfer.Id,
+	_, err = s.accounts.ExecuteTransfer(ctx,
+		&accountsv1.ExecuteTransferRequest{
+			Id:        transfer.Id,
+			UserId:    user.Id,
+			UserEmail: user.Email,
 		},
 	)
 	if err != nil {

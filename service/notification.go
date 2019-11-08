@@ -3,13 +3,15 @@ package service
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
+	accountsv1 "github.com/videocoin/cloud-api/accounts/v1"
 	notificationv1 "github.com/videocoin/cloud-api/notifications/v1"
-	transferv1 "github.com/videocoin/cloud-api/transfers/v1"
 	v1 "github.com/videocoin/cloud-api/users/v1"
+	"github.com/videocoin/cloud-pkg/ethutils"
 )
 
 type NotificationClient struct {
@@ -101,16 +103,19 @@ func (c *NotificationClient) SendEmailRecovery(ctx context.Context, user *v1.Use
 	return nil
 }
 
-func (c *NotificationClient) SendWithdrawTransfer(ctx context.Context, user *v1.User, transfer *transferv1.Transfer) error {
+func (c *NotificationClient) SendWithdrawTransfer(ctx context.Context, user *v1.User, transfer *accountsv1.TransferResponse) error {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendWithdrawTransfer")
 	defer span.Finish()
 
 	md := metautils.ExtractIncoming(ctx)
 
+	amount := new(big.Int)
+	amount, _ = amount.SetString(string(transfer.Amount), 10)
+
 	params := map[string]string{
 		"to":      user.Email,
 		"address": transfer.ToAddress,
-		"amount":  fmt.Sprintf("%f", transfer.Amount),
+		"amount":  fmt.Sprintf("%f", ethutils.WeiToEth(amount)),
 		"pin":     transfer.Pin,
 		"domain":  md.Get("x-forwarded-host"),
 	}

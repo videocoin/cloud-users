@@ -53,11 +53,6 @@ func newRequestValidator() *requestValidator {
 		RegisterAddressTranslation,
 		AddressTranslation)
 	validate.RegisterTranslation(
-		"amount",
-		*translator,
-		RegisterAmountTranslation,
-		AmountTranslation)
-	validate.RegisterTranslation(
 		"pin",
 		*translator,
 		RegisterPinTranslation,
@@ -182,15 +177,6 @@ func RegisterAddressTranslation(ut ut.Translator) error {
 
 func AddressTranslation(ut ut.Translator, fe validator.FieldError) string {
 	t, _ := ut.T("address", fe.Field())
-	return t
-}
-
-func RegisterAmountTranslation(ut ut.Translator) error {
-	return ut.Add("amount", "Enter a valid tokens amount", true)
-}
-
-func AmountTranslation(ut ut.Translator, fe validator.FieldError) string {
-	t, _ := ut.T("amount", fe.Field())
 	return t
 }
 

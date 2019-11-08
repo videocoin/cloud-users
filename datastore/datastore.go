@@ -6,9 +6,8 @@ import (
 )
 
 type Datastore struct {
-	User     *UserDatastore
-	Token    *TokenDatastore
-	Transfer *TransferDatastore
+	User  *UserDatastore
+	Token *TokenDatastore
 }
 
 func NewDatastore(uri string) (*Datastore, error) {
@@ -34,13 +33,6 @@ func NewDatastore(uri string) (*Datastore, error) {
 	}
 
 	ds.Token = tokenDs
-
-	transferDs, err := NewTransferDatastore(db)
-	if err != nil {
-		return nil, err
-	}
-
-	ds.Transfer = transferDs
 
 	return ds, nil
 }
