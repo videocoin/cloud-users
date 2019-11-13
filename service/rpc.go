@@ -134,8 +134,8 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 		s.logger.Errorf("failed to create account via eventbus: %s", err)
 	}
 
-	if err = s.notifications.SendEmailWaitlisted(ctx, user); err != nil {
-		s.logger.WithField("failed to send whitelisted email to user id", user.Id).Error(err)
+	if err = s.notifications.SendEmailWelcome(ctx, user); err != nil {
+		s.logger.WithField("failed to send welcome email to user id", user.Id).Error(err)
 	}
 
 	return &v1.TokenResponse{
@@ -591,7 +591,7 @@ func (s *RpcServer) authenticate(ctx context.Context) (*v1.User, context.Context
 	defer span.Finish()
 
 	ctx = auth.NewContextWithSecretKey(ctx, s.authTokenSecret)
-	ctx, err := auth.AuthFromContext(ctx)
+	ctx, _, err := auth.AuthFromContext(ctx)
 	if err != nil {
 		return nil, ctx, rpc.ErrRpcUnauthenticated
 	}
