@@ -290,6 +290,33 @@ func (s *RpcServer) Get(ctx context.Context, req *protoempty.Empty) (*v1.UserPro
 	return userProfile, nil
 }
 
+func (s *RpcServer) GetById(ctx context.Context, req *v1.UserRequest) (*v1.UserProfile, error) {
+	_ = opentracing.SpanFromContext(ctx)
+
+	user, err := s.ds.User.Get(req.Id)
+	if err != nil {
+		s.logger.Errorf("failed to get user: %s", err)
+		if err == datastore.ErrUserNotFound {
+			return nil, rpc.ErrRpcNotFound
+		}
+		return nil, rpc.ErrRpcInternal
+	}
+
+	userProfile := new(v1.UserProfile)
+	if err = copier.Copy(userProfile, user); err != nil {
+		return nil, rpc.ErrRpcInternal
+	}
+
+	accountProfile, err := s.accounts.GetByOwner(ctx, &accountsv1.AccountRequest{OwnerId: user.Id})
+	if err != nil {
+		s.logger.Errorf("failed to get account profile: %s", err)
+	} else {
+		userProfile.Account = accountProfile
+	}
+
+	return userProfile, nil
+}
+
 func (s *RpcServer) Whitelist(ctx context.Context, req *protoempty.Empty) (*v1.WhitelistResponse, error) {
 	_ = opentracing.SpanFromContext(ctx)
 
