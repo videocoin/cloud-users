@@ -7,8 +7,6 @@ VERSION=$$(git describe --abbrev=0)-$$(git rev-parse --abbrev-ref HEAD)-$$(git r
 
 DBM_MSQLURI=root:@tcp(127.0.0.1:3306)/videocoin?charset=utf8&parseTime=True&loc=Local
 
-ENV?=snb
-
 .PHONY: deploy
 
 default: build
