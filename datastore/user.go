@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/opentracing/opentracing-go"
@@ -23,13 +24,24 @@ type UserDatastore struct {
 	db *gorm.DB
 }
 
+type User struct {
+	Id          string      `gorm:"type:varchar(36);PRIMARY_KEY"`
+	Email       string      `gorm:"type:varchar(255);unique_index;DEFAULT:null"`
+	Password    string      `gorm:"type:varchar(100);DEFAULT:null"`
+	Name        string      `gorm:"type:varchar(100);DEFAULT:null"`
+	Role        v1.UserRole `gorm:"type:int(11);DEFAULT:null"`
+	IsActive    bool        `gorm:"Column:is_active;type:tinyint(1);DEFAULT:null"`
+	ActivatedAt *time.Time  `gorm:"type:timestamp NULL;DEFAULT:null"`
+	CreatedAt   *time.Time  `gorm:"type:timestamp NULL;DEFAULT:null"`
+	Token       string      `gorm:"type:varchar(255);DEFAULT:null"`
+}
+
 func NewUserDatastore(db *gorm.DB) (*UserDatastore, error) {
-	db.AutoMigrate(&v1.User{})
 	return &UserDatastore{db: db}, nil
 }
 
-func (ds *UserDatastore) List() ([]*v1.User, error) {
-	users := []*v1.User{}
+func (ds *UserDatastore) List() ([]*User, error) {
+	users := []*User{}
 
 	if err := ds.db.Find(&users).Error; err != nil {
 		return nil, fmt.Errorf("failed to get users list: %s", err)
@@ -38,8 +50,8 @@ func (ds *UserDatastore) List() ([]*v1.User, error) {
 	return users, nil
 }
 
-func (ds *UserDatastore) Get(id string) (*v1.User, error) {
-	user := &v1.User{}
+func (ds *UserDatastore) Get(id string) (*User, error) {
+	user := &User{}
 
 	if err := ds.db.Where("id = ?", id).First(user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -52,13 +64,13 @@ func (ds *UserDatastore) Get(id string) (*v1.User, error) {
 	return user, nil
 }
 
-func (ds *UserDatastore) GetByEmail(ctx context.Context, email string) (*v1.User, error) {
+func (ds *UserDatastore) GetByEmail(ctx context.Context, email string) (*User, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "GetByEmail")
 	defer span.Finish()
 
 	span.SetTag("email", email)
 
-	user := &v1.User{}
+	user := &User{}
 	if err := ds.db.Where("email = ?", email).First(user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrUserNotFound
@@ -70,8 +82,8 @@ func (ds *UserDatastore) GetByEmail(ctx context.Context, email string) (*v1.User
 	return user, nil
 }
 
-func (ds *UserDatastore) GetByVerificationCode(code string) (*v1.User, error) {
-	user := &v1.User{}
+func (ds *UserDatastore) GetByVerificationCode(code string) (*User, error) {
+	user := &User{}
 	if err := ds.db.Where("verification_code = ?", code).First(user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrUserNotFound
@@ -83,7 +95,7 @@ func (ds *UserDatastore) GetByVerificationCode(code string) (*v1.User, error) {
 	return user, nil
 }
 
-func (ds *UserDatastore) Register(ctx context.Context, email, name, password string) (*v1.User, error) {
+func (ds *UserDatastore) Register(ctx context.Context, email, name, password string) (*User, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Register")
 	defer span.Finish()
 
@@ -92,7 +104,7 @@ func (ds *UserDatastore) Register(ctx context.Context, email, name, password str
 
 	tx := ds.db.Begin()
 
-	user := &v1.User{}
+	user := &User{}
 	err := tx.Where("email = ?", email).First(user).Error
 	if err == nil {
 		tx.Rollback()
@@ -117,7 +129,7 @@ func (ds *UserDatastore) Register(ctx context.Context, email, name, password str
 		return nil, err
 	}
 
-	user = &v1.User{
+	user = &User{
 		Id:        id,
 		Email:     email,
 		Name:      name,
@@ -142,7 +154,7 @@ func (ds *UserDatastore) Register(ctx context.Context, email, name, password str
 	return user, nil
 }
 
-func (ds *UserDatastore) ResetPassword(ctx context.Context, user *v1.User, password string) error {
+func (ds *UserDatastore) ResetPassword(ctx context.Context, user *User, password string) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Recover")
 	defer span.Finish()
 
@@ -162,7 +174,7 @@ func (ds *UserDatastore) ResetPassword(ctx context.Context, user *v1.User, passw
 	return nil
 }
 
-func (ds *UserDatastore) UpdateAuthToken(ctx context.Context, user *v1.User, token string) error {
+func (ds *UserDatastore) UpdateAuthToken(ctx context.Context, user *User, token string) error {
 	span, _ := opentracing.StartSpanFromContext(ctx, "UpdateAuthToken")
 	defer span.Finish()
 
@@ -178,7 +190,7 @@ func (ds *UserDatastore) UpdateAuthToken(ctx context.Context, user *v1.User, tok
 	return nil
 }
 
-func (ds *UserDatastore) ResetAuthToken(user *v1.User) error {
+func (ds *UserDatastore) ResetAuthToken(user *User) error {
 	user.Token = ""
 
 	updates := map[string]interface{}{
@@ -198,7 +210,7 @@ func (ds *UserDatastore) Activate(userID string) error {
 		return err
 	}
 
-	user := &v1.User{
+	user := &User{
 		Id: userID,
 	}
 

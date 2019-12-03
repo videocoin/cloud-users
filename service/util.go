@@ -12,8 +12,8 @@ import (
 
 	"github.com/dchest/authcookie"
 	"github.com/opentracing/opentracing-go"
+	ds "github.com/videocoin/cloud-users/datastore"
 	"golang.org/x/crypto/bcrypt"
-	v1 "github.com/videocoin/cloud-api/users/v1"
 )
 
 var MinTokenLength = authcookie.MinLength
@@ -66,7 +66,7 @@ func newRecoveryToken(email string, duration time.Duration, passwordHash, secret
 // Function pwdvalFn must return the current password value for the login it
 // receives in arguments, or an error. If it returns an error, VerifyToken
 // returns the same error.
-func verifyRecoveryToken(ctx context.Context, token string, getUserFunc func(context.Context, string) (*v1.User, error), secret []byte) (user *v1.User, err error) {
+func verifyRecoveryToken(ctx context.Context, token string, getUserFunc func(context.Context, string) (*ds.User, error), secret []byte) (user *ds.User, err error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "verifyRecoveryToken")
 	defer span.Finish()
 

@@ -9,8 +9,8 @@ import (
 	"github.com/sirupsen/logrus"
 	accountsv1 "github.com/videocoin/cloud-api/accounts/v1"
 	notificationv1 "github.com/videocoin/cloud-api/notifications/v1"
-	v1 "github.com/videocoin/cloud-api/users/v1"
 	"github.com/videocoin/cloud-pkg/ethutils"
+	ds "github.com/videocoin/cloud-users/datastore"
 )
 
 type NotificationClient struct {
@@ -25,7 +25,7 @@ func NewNotificationClient(eb *EventBus, logger *logrus.Entry) (*NotificationCli
 	}, nil
 }
 
-func (c *NotificationClient) SendEmailWaitlisted(ctx context.Context, user *v1.User) error {
+func (c *NotificationClient) SendEmailWaitlisted(ctx context.Context, user *ds.User) error {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendEmailWaitlisted")
 	defer span.Finish()
 
@@ -50,7 +50,7 @@ func (c *NotificationClient) SendEmailWaitlisted(ctx context.Context, user *v1.U
 	return nil
 }
 
-func (c *NotificationClient) SendEmailWelcome(ctx context.Context, user *v1.User) error {
+func (c *NotificationClient) SendEmailWelcome(ctx context.Context, user *ds.User) error {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendEmailWelcome")
 	defer span.Finish()
 
@@ -76,7 +76,7 @@ func (c *NotificationClient) SendEmailWelcome(ctx context.Context, user *v1.User
 	return nil
 }
 
-func (c *NotificationClient) SendEmailRecovery(ctx context.Context, user *v1.User, token string) error {
+func (c *NotificationClient) SendEmailRecovery(ctx context.Context, user *ds.User, token string) error {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendEmailRecovery")
 	defer span.Finish()
 
@@ -128,7 +128,7 @@ func (c *NotificationClient) SendEmailConfirmation(ctx context.Context, user *v1
 	return nil
 }
 
-func (c *NotificationClient) SendWithdrawTransfer(ctx context.Context, user *v1.User, transfer *accountsv1.TransferResponse) error {
+func (c *NotificationClient) SendWithdrawTransfer(ctx context.Context, user *ds.User, transfer *accountsv1.TransferResponse) error {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendWithdrawTransfer")
 	defer span.Finish()
 
