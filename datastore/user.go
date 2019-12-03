@@ -122,7 +122,7 @@ func (ds *UserDatastore) Register(ctx context.Context, email, name, password str
 		Email:     email,
 		Name:      name,
 		Password:  passwordHash,
-		IsActive:  true,
+		IsActive:  false,
 		CreatedAt: &time,
 	}
 

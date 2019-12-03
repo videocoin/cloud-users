@@ -134,9 +134,13 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 		s.logger.Errorf("failed to create account via eventbus: %s", err)
 	}
 
-	if err = s.notifications.SendEmailWelcome(ctx, user); err != nil {
-		s.logger.WithField("failed to send welcome email to user id", user.Id).Error(err)
+	if err = s.notifications.SendEmailWaitlisted(ctx, user); err != nil {
+		s.logger.WithField("failed to send whitelisted email to user id", user.Id).Error(err)
 	}
+
+	// if err = s.notifications.SendEmailWelcome(ctx, user); err != nil {
+	// 	s.logger.WithField("failed to send welcome email to user id", user.Id).Error(err)
+	// }
 
 	return &v1.TokenResponse{
 		Token: token,
