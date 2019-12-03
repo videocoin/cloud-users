@@ -17,6 +17,7 @@ import (
 	"github.com/videocoin/cloud-pkg/auth"
 	"github.com/videocoin/cloud-pkg/grpcutil"
 	"github.com/videocoin/cloud-users/datastore"
+	ds "github.com/videocoin/cloud-users/datastore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -597,7 +598,7 @@ func (s *RpcServer) Withdraw(ctx context.Context, req *v1.WithdrawRequest) (*pro
 	return new(protoempty.Empty), nil
 }
 
-func (s *RpcServer) createToken(ctx context.Context, user *v1.User, tokenType v1.TokenType) (string, error) {
+func (s *RpcServer) createToken(ctx context.Context, user *ds.User, tokenType v1.TokenType) (string, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "createToken")
 	defer span.Finish()
 
@@ -627,7 +628,7 @@ func (s *RpcServer) createToken(ctx context.Context, user *v1.User, tokenType v1
 	return t, nil
 }
 
-func (s *RpcServer) authenticate(ctx context.Context) (*v1.User, context.Context, error) {
+func (s *RpcServer) authenticate(ctx context.Context) (*ds.User, context.Context, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "authenticate")
 	defer span.Finish()
 
