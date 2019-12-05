@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
@@ -111,11 +110,12 @@ func (c *NotificationClient) SendWithdrawTransfer(ctx context.Context, user *v1.
 
 	amount := new(big.Int)
 	amount, _ = amount.SetString(string(transfer.Amount), 10)
+	vdc, _ := ethutils.WeiToEth(amount)
 
 	params := map[string]string{
 		"to":      user.Email,
 		"address": transfer.ToAddress,
-		"amount":  fmt.Sprintf("%f", ethutils.WeiToEth(amount)),
+		"amount":  vdc.String(),
 		"pin":     transfer.Pin,
 		"domain":  md.Get("x-forwarded-host"),
 	}
