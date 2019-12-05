@@ -521,6 +521,16 @@ func (s *RpcServer) StartWithdraw(ctx context.Context, req *v1.StartWithdrawRequ
 		return nil, err
 	}
 
+	account, err := s.accounts.GetByOwner(ctx, &accountsv1.AccountRequest{OwnerId: user.Id})
+	if err != nil {
+		return nil, err
+	}
+
+	if account.IsLocked {
+		s.logger.Error("account is locked")
+		return nil, rpc.ErrRpcBadRequest
+	}
+
 	amount := new(big.Int).SetBytes([]byte(req.Amount))
 	transfer, err := s.accounts.CreateTransfer(ctx, &accountsv1.CreateTransferRequest{
 		UserId:    user.Id,
