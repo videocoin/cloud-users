@@ -102,6 +102,32 @@ func (c *NotificationClient) SendEmailRecovery(ctx context.Context, user *v1.Use
 	return nil
 }
 
+func (c *NotificationClient) SendEmailConfirmation(ctx context.Context, user *v1.User, token string) error {
+	span, _ := opentracing.StartSpanFromContext(ctx, "SendEmailConfirmation")
+	defer span.Finish()
+
+	md := metautils.ExtractIncoming(ctx)
+
+	params := map[string]string{
+		"to":     user.Email,
+		"token":  token,
+		"domain": md.Get("x-forwarded-host"),
+	}
+
+	notification := &notificationv1.Notification{
+		Target:   notificationv1.NotificationTarget_EMAIL,
+		Template: "user_confirmation",
+		Params:   params,
+	}
+
+	err := c.eb.SendNotification(span, notification)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *NotificationClient) SendWithdrawTransfer(ctx context.Context, user *v1.User, transfer *accountsv1.TransferResponse) error {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendWithdrawTransfer")
 	defer span.Finish()
