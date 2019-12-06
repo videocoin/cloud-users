@@ -134,13 +134,11 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 		s.logger.Errorf("failed to create account via eventbus: %s", err)
 	}
 
-	if err = s.notifications.SendEmailWaitlisted(ctx, user); err != nil {
-		s.logger.WithField("failed to send whitelisted email to user id", user.Id).Error(err)
-	}
+	confirmToken := newRecoveryToken(req.Email, 1*time.Hour, []byte(user.Password), []byte(s.authRecoverySecret))
 
-	// if err = s.notifications.SendEmailWelcome(ctx, user); err != nil {
-	// 	s.logger.WithField("failed to send welcome email to user id", user.Id).Error(err)
-	// }
+	if err = s.notifications.SendEmailConfirmation(ctx, user, confirmToken); err != nil {
+		s.logger.WithField("failed to send confirm email to user id", user.Id).Error(err)
+	}
 
 	return &v1.TokenResponse{
 		Token: token,
@@ -256,6 +254,50 @@ func (s *RpcServer) Recover(ctx context.Context, req *v1.RecoverUserRequest) (*p
 	return &protoempty.Empty{}, nil
 }
 
+func (s *RpcServer) StartConfirmation(ctx context.Context, req *protoempty.Empty) (*protoempty.Empty, error) {
+	_ = opentracing.SpanFromContext(ctx)
+
+	user, _, err := s.authenticate(ctx)
+	if err != nil {
+		s.logger.Error(err)
+		return nil, err
+	}
+
+	confirmToken := newRecoveryToken(user.Email, 1*time.Hour, []byte(user.Password), []byte(s.authRecoverySecret))
+
+	if err = s.notifications.SendEmailConfirmation(ctx, user, confirmToken); err != nil {
+		s.logger.WithField("failed to send confirmation email to user id", user.Id).Error(err)
+	}
+
+	return &protoempty.Empty{}, nil
+}
+
+func (s *RpcServer) Confirm(ctx context.Context, req *v1.ConfirmUserRequest) (*protoempty.Empty, error) {
+	_ = opentracing.SpanFromContext(ctx)
+
+	if verr := s.validator.validate(req); verr != nil {
+		s.logger.Error(verr)
+		return nil, rpc.NewRpcValidationError(verr)
+	}
+
+	user, err := verifyRecoveryToken(ctx, req.Token, s.ds.User.GetByEmail, []byte(s.authRecoverySecret))
+	if err != nil {
+		s.logger.Errorf("failed to get user: %s", err)
+		if err == datastore.ErrUserNotFound {
+			return nil, rpc.ErrRpcBadRequest
+		}
+
+		return nil, rpc.ErrRpcInternal
+	}
+
+	if err := s.ds.User.Activate(user.Id); err != nil {
+		s.logger.Errorf("failed to activate user: %s", err)
+		return nil, rpc.ErrRpcInternal
+	}
+
+	return &protoempty.Empty{}, nil
+}
+
 func (s *RpcServer) ResetPassword(ctx context.Context, req *v1.ResetPasswordUserRequest) (*protoempty.Empty, error) {
 	_ = opentracing.SpanFromContext(ctx)
 
@@ -350,39 +392,6 @@ func (s *RpcServer) LookupByAddress(ctx context.Context, req *v1.LookupByAddress
 		s.logger.Errorf("failed to look up address: %s", err)
 		return nil, rpc.ErrRpcNotFound
 
-	}
-
-	return new(protoempty.Empty), nil
-}
-
-func (s *RpcServer) Activate(ctx context.Context, req *v1.UserRequest) (*protoempty.Empty, error) {
-	_ = opentracing.SpanFromContext(ctx)
-
-	requester, ctx, err := s.authenticate(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if requester.Role < v1.UserRoleManager {
-		return nil, rpc.ErrRpcPermissionDenied
-	}
-
-	user, err := s.ds.User.Get(req.Id)
-	if err != nil {
-		s.logger.Errorf("failed to get user: %s", err)
-		if err == datastore.ErrUserNotFound {
-			return nil, rpc.ErrRpcNotFound
-		}
-		return nil, rpc.ErrRpcInternal
-	}
-
-	if err := s.ds.User.Activate(req.Id); err != nil {
-		s.logger.Errorf("failed to activate user: %s", err)
-		return nil, rpc.ErrRpcInternal
-	}
-
-	if err = s.notifications.SendEmailWelcome(ctx, user); err != nil {
-		s.logger.WithField("failed to send welcome email to user id", req.Id).Error(err)
 	}
 
 	return new(protoempty.Empty), nil
