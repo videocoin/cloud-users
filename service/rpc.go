@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 	"net"
+	"strconv"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -537,6 +538,12 @@ func (s *RpcServer) StartWithdraw(ctx context.Context, req *v1.StartWithdrawRequ
 
 	if account.IsLocked {
 		s.logger.Error("account is locked")
+		return nil, rpc.ErrRpcBadRequest
+	}
+
+	famount, err := strconv.ParseFloat(req.Amount, 64)
+	if err != nil || famount < 0 {
+		s.logger.WithError(err).Errorf("amount is negative or failed to convert: %s", req.Amount)
 		return nil, rpc.ErrRpcBadRequest
 	}
 
