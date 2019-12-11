@@ -41,11 +41,11 @@ func (e *EventBus) Stop() error {
 }
 
 func (e *EventBus) registerPublishers() error {
-	if err := e.mq.Publisher("account/create"); err != nil {
+	if err := e.mq.Publisher("accounts.create"); err != nil {
 		return err
 	}
 
-	if err := e.mq.Publisher("notifications/send"); err != nil {
+	if err := e.mq.Publisher("notifications.send"); err != nil {
 		return err
 	}
 
@@ -67,7 +67,7 @@ func (e *EventBus) CreateUserAccount(span opentracing.Span, req *accountsv1.Acco
 		mqmux.RMQHeaderCarrier(headers),
 	)
 
-	return e.mq.PublishX("account/create", req, headers)
+	return e.mq.PublishX("accounts.create", req, headers)
 }
 
 func (e *EventBus) SendNotification(span opentracing.Span, req *notificationv1.Notification) error {
@@ -81,5 +81,5 @@ func (e *EventBus) SendNotification(span opentracing.Span, req *notificationv1.N
 		mqmux.RMQHeaderCarrier(headers),
 	)
 
-	return e.mq.PublishX("notifications/send", req, headers)
+	return e.mq.PublishX("notifications.send", req, headers)
 }
