@@ -393,7 +393,6 @@ func (s *RpcServer) LookupByAddress(ctx context.Context, req *v1.LookupByAddress
 	if err != nil {
 		s.logger.Errorf("failed to look up address: %s", err)
 		return nil, rpc.ErrRpcNotFound
-
 	}
 
 	return new(protoempty.Empty), nil
@@ -416,7 +415,6 @@ func (s *RpcServer) Key(ctx context.Context, req *v1.UserRequest) (*v1.KeyRespon
 	if err != nil {
 		s.logger.Errorf("failed to get key: %s", err)
 		return nil, rpc.ErrRpcNotFound
-
 	}
 
 	keyResp := &v1.KeyResponse{
@@ -424,6 +422,30 @@ func (s *RpcServer) Key(ctx context.Context, req *v1.UserRequest) (*v1.KeyRespon
 	}
 
 	return keyResp, nil
+}
+
+func (s *RpcServer) Keys(ctx context.Context, req *protoempty.Empty) (*v1.KeysResponse, error) {
+	_ = opentracing.SpanFromContext(ctx)
+
+	keys, err := s.accounts.Keys(ctx, &protoempty.Empty{})
+	if err != nil {
+		s.logger.Errorf("failed to get keys: %s", err)
+		return nil, rpc.ErrRpcInternal
+	}
+
+	items := make([]*v1.KeyResponse, 0)
+
+	for _, i := range keys.Items {
+		items = append(items, &v1.KeyResponse{
+			Key: i.Key,
+		})
+	}
+
+	keysResp := &v1.KeysResponse{
+		Items: items,
+	}
+
+	return keysResp, nil
 }
 
 func (s *RpcServer) ListApiTokens(ctx context.Context, req *protoempty.Empty) (*v1.UserApiListResponse, error) {

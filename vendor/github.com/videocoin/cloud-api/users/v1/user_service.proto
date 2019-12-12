@@ -60,6 +60,12 @@ service UserService {
         };
     }
 
+    rpc Keys(google.protobuf.Empty) returns (KeysResponse) {
+        option (google.api.http) = {
+            get: "/api/v1/keys"
+        };
+    }
+
     rpc StartRecovery(StartRecoveryUserRequest) returns (google.protobuf.Empty) {
         option (google.api.http) = {
             post: "/api/v1/recovery/start",
@@ -217,6 +223,10 @@ message LookupByAddressRequest {
 
 message KeyResponse {
     string key = 1;
+}
+
+message KeysResponse {
+    repeated KeyResponse items = 1;
 }
 
 message UserApiTokenRequest {
