@@ -102,7 +102,7 @@ func (c *NotificationClient) SendEmailRecovery(ctx context.Context, user *ds.Use
 	return nil
 }
 
-func (c *NotificationClient) SendEmailConfirmation(ctx context.Context, user *v1.User, token string) error {
+func (c *NotificationClient) SendEmailConfirmation(ctx context.Context, user *ds.User, token string) error {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendEmailConfirmation")
 	defer span.Finish()
 
