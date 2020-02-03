@@ -19,6 +19,7 @@ import (
 	"github.com/videocoin/cloud-pkg/grpcutil"
 	"github.com/videocoin/cloud-users/datastore"
 	ds "github.com/videocoin/cloud-users/datastore"
+	smv1 "github.com/videocoin/videocoinapis-admin/videocoin/admin/api/servicemanagement/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -33,6 +34,7 @@ type RpcServerOptions struct {
 	Logger   *logrus.Entry
 	DS       *datastore.Datastore
 	Accounts accountsv1.AccountServiceClient
+	Sm       smv1.ServiceManagerClient
 	EB       *EventBus
 }
 
@@ -47,6 +49,7 @@ type RpcServer struct {
 	ds            *datastore.Datastore
 	eb            *EventBus
 	accounts      accountsv1.AccountServiceClient
+	sm            smv1.ServiceManagerClient
 	notifications *NotificationClient
 	validator     *requestValidator
 }
@@ -77,6 +80,7 @@ func NewRpcServer(opts *RpcServerOptions) (*RpcServer, error) {
 		ds:                 opts.DS,
 		eb:                 opts.EB,
 		accounts:           opts.Accounts,
+		sm:                 opts.Sm,
 		notifications:      nc,
 		validator:          newRequestValidator(),
 	}
@@ -104,7 +108,7 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 
 	user, err := s.ds.User.Register(ctx, req.Email, req.Name, req.Password)
 	if err != nil {
-		s.logger.Error(err)
+		s.logger.WithError(err).Error("failed to register user")
 		if err == datastore.ErrUserAlreadyExists {
 			respErr := &rpc.MultiValidationError{
 				Errors: []*rpc.ValidationError{
@@ -122,24 +126,32 @@ func (s *RpcServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 
 	token, err := s.createToken(ctx, user, v1.TokenTypeRegular)
 	if err != nil {
-		s.logger.Error(err)
+		s.logger.WithError(err).Error("failed to create user token")
 		return nil, rpc.ErrRpcInternal
 	}
 
 	if err = s.ds.User.UpdateAuthToken(ctx, user, token); err != nil {
-		s.logger.Error(err)
+		s.logger.WithError(err).Error("failed to update user token")
 		return nil, rpc.ErrRpcInternal
+	}
+
+	_, err = s.sm.EnableService(ctx, &smv1.EnableServiceRequest{
+		ServiceName: "symphony.videocoin.network",
+		ConsumerId:  user.Id,
+	})
+	if err != nil {
+		s.logger.WithError(err).Error("failed to enable user service")
 	}
 
 	accReq := &accountsv1.AccountRequest{OwnerId: user.Id}
 	if err = s.eb.CreateUserAccount(span, accReq); err != nil {
-		s.logger.Errorf("failed to create account via eventbus: %s", err)
+		s.logger.WithError(err).Error("failed to create account via eventbus")
 	}
 
 	confirmToken := newRecoveryToken(req.Email, 1*time.Hour, []byte(user.Password), []byte(s.authRecoverySecret))
 
 	if err = s.notifications.SendEmailConfirmation(ctx, user, confirmToken); err != nil {
-		s.logger.WithField("failed to send confirm email to user id", user.Id).Error(err)
+		s.logger.WithError(err).Error("failed to send confirm email to user")
 	}
 
 	return &v1.TokenResponse{

@@ -5,7 +5,7 @@ import (
 	"github.com/videocoin/cloud-pkg/grpcutil"
 	"github.com/videocoin/cloud-pkg/mqmux"
 	"github.com/videocoin/cloud-users/datastore"
-	"google.golang.org/grpc"
+	smv1 "github.com/videocoin/videocoinapis-admin/videocoin/admin/api/servicemanagement/v1"
 )
 
 type Service struct {
@@ -20,14 +20,17 @@ func NewService(cfg *Config) (*Service, error) {
 		return nil, err
 	}
 
-	alogger := cfg.Logger.WithField("system", "accountcli")
-	aGrpcDialOpts := grpcutil.ClientDialOptsWithRetry(alogger)
-	accountsConn, err := grpc.Dial(cfg.AccountsRPCAddr, aGrpcDialOpts...)
+	conn, err := grpcutil.Connect(cfg.AccountsRPCAddr, cfg.Logger.WithField("system", "accountcli"))
 	if err != nil {
 		return nil, err
 	}
+	accounts := accountsv1.NewAccountServiceClient(conn)
 
-	accounts := accountsv1.NewAccountServiceClient(accountsConn)
+	conn, err = grpcutil.Connect(cfg.ServiceManagerRPCAddr, cfg.Logger.WithField("system", "smcli"))
+	if err != nil {
+		return nil, err
+	}
+	sm := smv1.NewServiceManagerClient(conn)
 
 	mq, err := mqmux.NewWorkerMux(cfg.MQURI, cfg.Name)
 	if err != nil {
@@ -49,6 +52,7 @@ func NewService(cfg *Config) (*Service, error) {
 		DS:                 ds,
 		EB:                 eb,
 		Accounts:           accounts,
+		Sm:                 sm,
 	}
 
 	rpc, err := NewRpcServer(rpcConfig)
