@@ -4,7 +4,6 @@ import (
 	"context"
 	"math/big"
 	"net"
-	"strconv"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -564,9 +563,10 @@ func (s *RpcServer) StartWithdraw(ctx context.Context, req *v1.StartWithdrawRequ
 		return nil, rpc.ErrRpcBadRequest
 	}
 
-	famount, err := strconv.ParseFloat(req.Amount, 64)
-	if err != nil || famount < 0 {
-		s.logger.WithError(err).Errorf("amount is negative or failed to convert: %s", req.Amount)
+	famount := new(big.Float)
+	famount.SetString(req.Amount)
+	if famount == nil ||  famount.Cmp(big.NewFloat(0)) < 0 {
+		s.logger.Errorf("amount is negative or failed to convert: %s", req.Amount)
 		return nil, rpc.ErrRpcBadRequest
 	}
 
