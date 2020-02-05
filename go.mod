@@ -3,7 +3,6 @@ module github.com/videocoin/cloud-users
 go 1.12
 
 require (
-	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/dchest/authcookie v0.0.0-20120917135355-fbdef6e99866
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-playground/locales v0.12.1
@@ -19,9 +18,9 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/streadway/amqp v0.0.0-20190404075320-75d898a42a94
 	github.com/uber-go/atomic v1.4.0 // indirect
-	github.com/videocoin/cloud-api v0.2.15
+	github.com/videocoin/cloud-api v0.3.0
 	github.com/videocoin/cloud-pkg v0.0.6
-	go.uber.org/atomic v1.4.0 // indirect
+	github.com/videocoin/videocoinapis-admin v0.1.1
 	golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8
 	google.golang.org/grpc v1.21.1
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
