@@ -1,11 +1,18 @@
 syntax = "proto3";
 
-package videocoin.admin.api.servicemanagement.v1;
+package cloud.api.servicemanager.v1;
 
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 import "google/protobuf/empty.proto";
-import "videocoin/admin/api/servicemanagement/v1/resources.proto";
 
-option go_package = "videocoin/admin/api/servicemanagement/v1";
+import "servicemanager/v1/resources.proto";
+
+option go_package = "v1";
+option (gogoproto.marshaler_all) = false;
+option (gogoproto.unmarshaler_all) = false;
+option (gogoproto.sizer_all) = false;
+option (gogoproto.goproto_registration) = true;
+option (gogoproto.messagename_all) = true;
 
 service ServiceManager {
   // Lists managed services.
@@ -23,12 +30,12 @@ service ServiceManager {
   rpc DeleteService(DeleteServiceRequest) returns (google.protobuf.Empty) {}
 
   // Enables a
-  // [service][videocoin.admin.api.servicemanagement.v1.ManagedService] for a
+  // [service][cloud.api.servicemanager.v1.ManagedService] for a
   // project, so it can be used for the project.
   rpc EnableService(EnableServiceRequest) returns (google.protobuf.Empty) {}
 
   // Disables a
-  // [service][videocoin.admin.api.servicemanagement.v1.ManagedService] for a
+  // [service][cloud.api.servicemanager.v1.ManagedService] for a
   // project, so it can no longer be be used for the project. It prevents
   // security leaks.
   rpc DisableService(DisableServiceRequest) returns (google.protobuf.Empty) {}
@@ -47,7 +54,7 @@ message ListServicesRequest {
   // Include services consumed by the specified consumer.
   //
   // The implementation accepts the following forms:
-  // - project:<project_id>
+  // - "<project_id>"
   string consumer_id = 3;
 }
 
@@ -91,7 +98,7 @@ message EnableServiceRequest {
   //
   // The implementation accepts the following
   // forms:
-  // - "project:<project_id>"
+  // - "<project_id>"
   string consumer_id = 2;
 }
 
@@ -106,7 +113,7 @@ message DisableServiceRequest {
   //
   // The implementation accepts the following
   // forms:
-  // - "project:<project_id>"
+  // - "<project_id>"
   //
   string consumer_id = 2;
 }

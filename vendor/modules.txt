@@ -34,7 +34,6 @@ github.com/golang/protobuf/protoc-gen-go/descriptor
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
-github.com/golang/protobuf/ptypes/empty
 github.com/golang/protobuf/ptypes/struct
 github.com/golang/protobuf/ptypes/timestamp
 github.com/golang/protobuf/ptypes/wrappers
@@ -120,6 +119,7 @@ github.com/uber/jaeger-lib/metrics
 github.com/videocoin/cloud-api/accounts/v1
 github.com/videocoin/cloud-api/notifications/v1
 github.com/videocoin/cloud-api/rpc
+github.com/videocoin/cloud-api/servicemanager/v1
 github.com/videocoin/cloud-api/transfers/v1
 github.com/videocoin/cloud-api/users/v1
 # github.com/videocoin/cloud-pkg v0.0.6 => ../cloud-pkg
@@ -131,8 +131,6 @@ github.com/videocoin/cloud-pkg/logger
 github.com/videocoin/cloud-pkg/mqmux
 github.com/videocoin/cloud-pkg/tracer
 github.com/videocoin/cloud-pkg/uuid4
-# github.com/videocoin/videocoinapis-admin v0.1.1
-github.com/videocoin/videocoinapis-admin/videocoin/admin/api/servicemanagement/v1
 # go.uber.org/atomic v1.5.1
 go.uber.org/atomic
 # golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8

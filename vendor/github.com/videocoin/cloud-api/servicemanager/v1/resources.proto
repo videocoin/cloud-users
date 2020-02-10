@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package cloud.api.servicemanager.v1;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+option go_package = "v1";
+option (gogoproto.marshaler_all) = false;
+option (gogoproto.unmarshaler_all) = false;
+option (gogoproto.sizer_all) = false;
+option (gogoproto.goproto_registration) = true;
+option (gogoproto.messagename_all) = true;
+
+// The full representation of a Service that is managed by
+// VideoCoin management.
+message ManagedService {
+  // The name of the service. For example: `symphony.videocoin.network`.
+  string service_name = 1;
+}
