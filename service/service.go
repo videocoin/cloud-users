@@ -2,10 +2,10 @@ package service
 
 import (
 	accountsv1 "github.com/videocoin/cloud-api/accounts/v1"
+	smv1 "github.com/videocoin/cloud-api/servicemanager/v1"
 	"github.com/videocoin/cloud-pkg/grpcutil"
 	"github.com/videocoin/cloud-pkg/mqmux"
 	"github.com/videocoin/cloud-users/datastore"
-	smv1 "github.com/videocoin/videocoinapis-admin/videocoin/admin/api/servicemanagement/v1"
 )
 
 type Service struct {
