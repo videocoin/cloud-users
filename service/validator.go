@@ -17,7 +17,7 @@ type requestValidator struct {
 	translator *ut.Translator
 }
 
-func newRequestValidator() *requestValidator {
+func newRequestValidator() (*requestValidator, error) {
 	lt := enLocale.New()
 	en := &lt
 
@@ -26,47 +26,70 @@ func newRequestValidator() *requestValidator {
 	translator := &uniEn
 
 	validate := validator.New()
-	enTrans.RegisterDefaultTranslations(validate, *translator)
-
-	validate.RegisterTranslation(
+	err := enTrans.RegisterDefaultTranslations(validate, *translator)
+	if err != nil {
+		return nil, err
+	}
+	err = validate.RegisterTranslation(
 		"email",
 		*translator,
 		RegisterEmailTranslation,
 		EmailTranslation)
-	validate.RegisterTranslation(
+	if err != nil {
+		return nil, err
+	}
+	err = validate.RegisterTranslation(
 		"secure-password",
 		*translator,
 		RegisterSecurePasswordTranslation,
 		SecurePasswordTranslation)
-	validate.RegisterTranslation(
+	if err != nil {
+		return nil, err
+	}
+	err = validate.RegisterTranslation(
 		"confirm-password",
 		*translator,
 		RegisterConfirmPasswordTranslation,
 		ConfirmPasswordTranslation)
-
-	validate.RegisterValidation("confirm-password", ValidateConfirmPassword)
-	validate.RegisterValidation("secure-password", ValidateSecurePassword)
-
-	validate.RegisterTranslation(
+	if err != nil {
+		return nil, err
+	}
+	err = validate.RegisterValidation("confirm-password", ValidateConfirmPassword)
+	if err != nil {
+		return nil, err
+	}
+	err = validate.RegisterValidation("secure-password", ValidateSecurePassword)
+	if err != nil {
+		return nil, err
+	}
+	err = validate.RegisterTranslation(
 		"address",
 		*translator,
 		RegisterAddressTranslation,
 		AddressTranslation)
-	validate.RegisterTranslation(
+	if err != nil {
+		return nil, err
+	}
+	err = validate.RegisterTranslation(
 		"pin",
 		*translator,
 		RegisterPinTranslation,
 		PinTranslation)
-	validate.RegisterTranslation(
+	if err != nil {
+		return nil, err
+	}
+	err = validate.RegisterTranslation(
 		"transfer_id",
 		*translator,
-		RegisterTransferIdTranslation,
-		TransferIdTranslation)
-
+		RegisterTransferIDTranslation,
+		TransferIDTranslation)
+	if err != nil {
+		return nil, err
+	}
 	return &requestValidator{
 		validator:  validate,
 		translator: translator,
-	}
+	}, nil
 
 }
 
@@ -189,11 +212,11 @@ func PinTranslation(ut ut.Translator, fe validator.FieldError) string {
 	return t
 }
 
-func RegisterTransferIdTranslation(ut ut.Translator) error {
+func RegisterTransferIDTranslation(ut ut.Translator) error {
 	return ut.Add("transfer_id", "Enter a valid transfer id", true)
 }
 
-func TransferIdTranslation(ut ut.Translator, fe validator.FieldError) string {
+func TransferIDTranslation(ut ut.Translator, fe validator.FieldError) string {
 	t, _ := ut.T("transfer_id", fe.Field())
 	return t
 }

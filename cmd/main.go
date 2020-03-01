@@ -5,11 +5,11 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/kelseyhightower/envconfig"
+	"github.com/sirupsen/logrus"
 	"github.com/videocoin/cloud-pkg/logger"
 	"github.com/videocoin/cloud-pkg/tracer"
 	"github.com/videocoin/cloud-users/service"
-	"github.com/kelseyhightower/envconfig"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -18,7 +18,7 @@ var (
 )
 
 func main() {
-	logger.Init(ServiceName, Version)
+	logger.Init(ServiceName, Version)  //nolint
 
 	log := logrus.NewEntry(logrus.New())
 
@@ -66,7 +66,7 @@ func main() {
 	}()
 
 	log.Info("starting")
-	go svc.Start()
+	go log.Error(svc.Start())
 
 	<-exit
 

@@ -10,7 +10,7 @@ import (
 
 type Service struct {
 	cfg *Config
-	rpc *RpcServer
+	rpc *RPCServer
 	eb  *EventBus
 }
 
@@ -41,7 +41,7 @@ func NewService(cfg *Config) (*Service, error) {
 		return nil, err
 	}
 
-	rpcConfig := &RpcServerOptions{
+	rpcConfig := &RPCServerOptions{
 		Addr:               cfg.RPCAddr,
 		AuthTokenSecret:    cfg.AuthTokenSecret,
 		AuthRecoverySecret: cfg.AuthRecoverySecret,
@@ -51,7 +51,7 @@ func NewService(cfg *Config) (*Service, error) {
 		Accounts:           accounts,
 	}
 
-	rpc, err := NewRpcServer(rpcConfig)
+	rpc, err := NewRPCServer(rpcConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -66,12 +66,12 @@ func NewService(cfg *Config) (*Service, error) {
 }
 
 func (s *Service) Start() error {
-	go s.rpc.Start()
-	go s.eb.Start()
+	go s.rpc.Start()  //nolint
+	go s.eb.Start()  //nolint
 	return nil
 }
 
 func (s *Service) Stop() error {
-	s.eb.Stop()
-	return nil
+	err := s.eb.Stop()
+	return err
 }

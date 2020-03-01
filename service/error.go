@@ -1,10 +1,10 @@
 package service
 
 import (
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
-	ErrRpcUserAlreadyExists = grpc.Errorf(codes.AlreadyExists, "User already exists")
+	ErrRPCUserAlreadyExists = status.Errorf(codes.AlreadyExists, "User already exists")
 )

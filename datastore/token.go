@@ -21,23 +21,23 @@ type TokenDatastore struct {
 	db *gorm.DB
 }
 
-type UserApiToken struct {
-	Id        string      `gorm:"type:varchar(36);PRIMARY_KEY"`
-	UserId    string      `gorm:"type:varchar(36);DEFAULT:null"`
-	Name      string      `gorm:"type:varchar(100);DEFAULT:null"`
-	Token     string      `gorm:"type:varchar(255);DEFAULT:null"`
-	CreatedAt *time.Time  `gorm:"type:timestamp NULL;DEFAULT:null"`
+type UserAPIToken struct {
+	ID        string     `gorm:"type:varchar(36);PRIMARY_KEY"`
+	UserID    string     `gorm:"type:varchar(36);DEFAULT:null"`
+	Name      string     `gorm:"type:varchar(100);DEFAULT:null"`
+	Token     string     `gorm:"type:varchar(255);DEFAULT:null"`
+	CreatedAt *time.Time `gorm:"type:timestamp NULL;DEFAULT:null"`
 }
 
 func NewTokenDatastore(db *gorm.DB) (*TokenDatastore, error) {
 	return &TokenDatastore{db: db}, nil
 }
 
-func (ds *TokenDatastore) Create(ctx context.Context, userId, name, token string) (*UserApiToken, error) {
+func (ds *TokenDatastore) Create(ctx context.Context, userID, name, token string) (*UserAPIToken, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "Create")
 	defer span.Finish()
 
-	span.SetTag("user_id", userId)
+	span.SetTag("user_id", userID)
 	span.SetTag("name", name)
 
 	tx := ds.db.Begin()
@@ -54,9 +54,9 @@ func (ds *TokenDatastore) Create(ctx context.Context, userId, name, token string
 		return nil, err
 	}
 
-	apiToken := &UserApiToken{
-		Id:        id,
-		UserId:    userId,
+	apiToken := &UserAPIToken{
+		ID:        id,
+		UserID:    userID,
 		Name:      name,
 		Token:     token,
 		CreatedAt: &time,
@@ -72,14 +72,14 @@ func (ds *TokenDatastore) Create(ctx context.Context, userId, name, token string
 	return apiToken, nil
 }
 
-func (ds *TokenDatastore) ListByUser(ctx context.Context, userId string) ([]*UserApiToken, error) {
+func (ds *TokenDatastore) ListByUser(ctx context.Context, userID string) ([]*UserAPIToken, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "ListByUser")
 	defer span.Finish()
 
-	span.SetTag("user_id", userId)
+	span.SetTag("user_id", userID)
 
-	tokens := []*UserApiToken{}
-	if err := ds.db.Where("user_id = ?", userId).Find(&tokens).Error; err != nil {
+	tokens := []*UserAPIToken{}
+	if err := ds.db.Where("user_id = ?", userID).Find(&tokens).Error; err != nil {
 		return nil, fmt.Errorf("failed to get user api tokens: %s", err)
 	}
 
@@ -92,8 +92,8 @@ func (ds *TokenDatastore) Delete(ctx context.Context, id string) error {
 
 	span.SetTag("id", id)
 
-	token := &UserApiToken{
-		Id: id,
+	token := &UserAPIToken{
+		ID: id,
 	}
 	if err := ds.db.Delete(token).Error; err != nil {
 		return fmt.Errorf("failed to delete user api token: %s", err)
@@ -102,13 +102,13 @@ func (ds *TokenDatastore) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (ds *TokenDatastore) GetByToken(ctx context.Context, token string) (*UserApiToken, error) {
+func (ds *TokenDatastore) GetByToken(ctx context.Context, token string) (*UserAPIToken, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "GetByToken")
 	defer span.Finish()
 
 	span.SetTag("token", token)
 
-	t := &UserApiToken{}
+	t := &UserAPIToken{}
 	if err := ds.db.Where("token = ?", token).First(t).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrTokenNotFound

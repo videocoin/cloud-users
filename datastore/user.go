@@ -25,7 +25,7 @@ type UserDatastore struct {
 }
 
 type User struct {
-	Id          string      `gorm:"type:varchar(36);PRIMARY_KEY"`
+	ID          string      `gorm:"type:varchar(36);PRIMARY_KEY"`
 	Email       string      `gorm:"type:varchar(255);unique_index;DEFAULT:null"`
 	Password    string      `gorm:"type:varchar(100);DEFAULT:null"`
 	Name        string      `gorm:"type:varchar(100);DEFAULT:null"`
@@ -130,7 +130,7 @@ func (ds *UserDatastore) Register(ctx context.Context, email, name, password str
 	}
 
 	user = &User{
-		Id:        id,
+		ID:        id,
 		Email:     email,
 		Name:      name,
 		Password:  passwordHash,
@@ -211,7 +211,7 @@ func (ds *UserDatastore) Activate(userID string) error {
 	}
 
 	user := &User{
-		Id: userID,
+		ID: userID,
 	}
 
 	updates := map[string]interface{}{
