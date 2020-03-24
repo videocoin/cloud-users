@@ -21,9 +21,6 @@ func main() {
 	logger.Init(ServiceName, Version) //nolint
 
 	log := logrus.NewEntry(logrus.New())
-
-	log.Logger.SetReportCaller(true)
-
 	log = logrus.WithFields(logrus.Fields{
 		"service": ServiceName,
 		"version": Version,
