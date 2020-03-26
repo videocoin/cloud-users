@@ -2,14 +2,11 @@ package service
 
 import (
 	"context"
-	"math/big"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
-	accountsv1 "github.com/videocoin/cloud-api/accounts/v1"
 	notificationv1 "github.com/videocoin/cloud-api/notifications/v1"
-	"github.com/videocoin/cloud-pkg/ethutils"
 	ds "github.com/videocoin/cloud-users/datastore"
 )
 
@@ -117,38 +114,6 @@ func (c *NotificationClient) SendEmailConfirmation(ctx context.Context, user *ds
 	notification := &notificationv1.Notification{
 		Target:   notificationv1.NotificationTarget_EMAIL,
 		Template: "user_confirmation",
-		Params:   params,
-	}
-
-	err := c.eb.SendNotification(span, notification)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *NotificationClient) SendWithdrawTransfer(ctx context.Context, user *ds.User, transfer *accountsv1.TransferResponse) error {
-	span, _ := opentracing.StartSpanFromContext(ctx, "SendWithdrawTransfer")
-	defer span.Finish()
-
-	md := metautils.ExtractIncoming(ctx)
-
-	amount := new(big.Int)
-	amount, _ = amount.SetString(string(transfer.Amount), 10)
-	vdc, _ := ethutils.WeiToEth(amount)
-
-	params := map[string]string{
-		"to":      user.Email,
-		"address": transfer.ToAddress,
-		"amount":  vdc.String(),
-		"pin":     transfer.Pin,
-		"domain":  md.Get("x-forwarded-host"),
-	}
-
-	notification := &notificationv1.Notification{
-		Target:   notificationv1.NotificationTarget_EMAIL,
-		Template: "user_withdraw_confirmation",
 		Params:   params,
 	}
 

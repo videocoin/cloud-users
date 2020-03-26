@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"math/big"
 	"net"
 	"time"
 
@@ -340,7 +339,7 @@ func (s *RPCServer) Get(ctx context.Context, req *protoempty.Empty) (*v1.UserPro
 	return userProfile, nil
 }
 
-func (s *RPCServer) GetById(ctx context.Context, req *v1.UserRequest) (*v1.UserProfile, error) {  //nolint
+func (s *RPCServer) GetById(ctx context.Context, req *v1.UserRequest) (*v1.UserProfile, error) { //nolint
 	_ = opentracing.SpanFromContext(ctx)
 
 	user, err := s.ds.User.Get(req.Id)
@@ -367,90 +366,7 @@ func (s *RPCServer) GetById(ctx context.Context, req *v1.UserRequest) (*v1.UserP
 	return userProfile, nil
 }
 
-func (s *RPCServer) Whitelist(ctx context.Context, req *protoempty.Empty) (*v1.WhitelistResponse, error) {
-	_ = opentracing.SpanFromContext(ctx)
-
-	accounts, err := s.accounts.List(ctx, new(protoempty.Empty))
-	if err != nil {
-		s.logger.Errorf("failed to get whitelist: %s", err)
-		return nil, err
-	}
-
-	items := make([]string, 0)
-
-	for _, a := range accounts.Items {
-		items = append(items, a.Address)
-	}
-
-	return &v1.WhitelistResponse{
-		Items: items,
-	}, nil
-}
-
-func (s *RPCServer) LookupByAddress(ctx context.Context, req *v1.LookupByAddressRequest) (*protoempty.Empty, error) {
-	_ = opentracing.SpanFromContext(ctx)
-
-	aReq := &accountsv1.Address{Address: req.Address}
-	_, err := s.accounts.GetByAddress(ctx, aReq)
-	if err != nil {
-		s.logger.Errorf("failed to look up address: %s", err)
-		return nil, rpc.ErrRpcNotFound
-	}
-
-	return new(protoempty.Empty), nil
-}
-
-func (s *RPCServer) Key(ctx context.Context, req *v1.UserRequest) (*v1.KeyResponse, error) {
-	_ = opentracing.SpanFromContext(ctx)
-
-	requester, ctx, err := s.authenticate(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if requester.Role < v1.UserRoleManager {
-		return nil, rpc.ErrRpcPermissionDenied
-	}
-
-	aReq := &accountsv1.AccountRequest{OwnerId: req.Id}
-	key, err := s.accounts.Key(ctx, aReq)
-	if err != nil {
-		s.logger.Errorf("failed to get key: %s", err)
-		return nil, rpc.ErrRpcNotFound
-	}
-
-	keyResp := &v1.KeyResponse{
-		Key: key.Key,
-	}
-
-	return keyResp, nil
-}
-
-func (s *RPCServer) Keys(ctx context.Context, req *protoempty.Empty) (*v1.KeysResponse, error) {
-	_ = opentracing.SpanFromContext(ctx)
-
-	keys, err := s.accounts.Keys(ctx, &protoempty.Empty{})
-	if err != nil {
-		s.logger.Errorf("failed to get keys: %s", err)
-		return nil, rpc.ErrRpcInternal
-	}
-
-	items := make([]*v1.KeyResponse, 0)
-
-	for _, i := range keys.Items {
-		items = append(items, &v1.KeyResponse{
-			Key: i.Key,
-		})
-	}
-
-	keysResp := &v1.KeysResponse{
-		Items: items,
-	}
-
-	return keysResp, nil
-}
-
-func (s *RPCServer) ListApiTokens(ctx context.Context, req *protoempty.Empty) (*v1.UserApiListResponse, error) {  //nolint
+func (s *RPCServer) ListApiTokens(ctx context.Context, req *protoempty.Empty) (*v1.UserApiListResponse, error) { //nolint
 	_ = opentracing.SpanFromContext(ctx)
 
 	user, _, err := s.authenticate(ctx)
@@ -473,7 +389,7 @@ func (s *RPCServer) ListApiTokens(ctx context.Context, req *protoempty.Empty) (*
 	}, nil
 }
 
-func (s *RPCServer) CreateApiToken(ctx context.Context, req *v1.UserApiTokenRequest) (*v1.CreateUserApiTokenResponse, error) {  //nolint
+func (s *RPCServer) CreateApiToken(ctx context.Context, req *v1.UserApiTokenRequest) (*v1.CreateUserApiTokenResponse, error) { //nolint
 	span := opentracing.SpanFromContext(ctx)
 	span.SetTag("name", req.Name)
 
@@ -501,7 +417,7 @@ func (s *RPCServer) CreateApiToken(ctx context.Context, req *v1.UserApiTokenRequ
 	}, nil
 }
 
-func (s *RPCServer) DeleteApiToken(ctx context.Context, req *v1.UserApiTokenRequest) (*protoempty.Empty, error) {  //nolint
+func (s *RPCServer) DeleteApiToken(ctx context.Context, req *v1.UserApiTokenRequest) (*protoempty.Empty, error) { //nolint
 	span := opentracing.SpanFromContext(ctx)
 	span.SetTag("id", req.Id)
 
@@ -519,7 +435,7 @@ func (s *RPCServer) DeleteApiToken(ctx context.Context, req *v1.UserApiTokenRequ
 	return new(protoempty.Empty), nil
 }
 
-func (s *RPCServer) GetApiToken(ctx context.Context, req *v1.ApiTokenRequest) (*v1.UserApiTokenResponse, error) {  //nolint
+func (s *RPCServer) GetApiToken(ctx context.Context, req *v1.ApiTokenRequest) (*v1.UserApiTokenResponse, error) { //nolint
 	span := opentracing.SpanFromContext(ctx)
 	span.SetTag("token", req.Token)
 
@@ -539,104 +455,6 @@ func (s *RPCServer) GetApiToken(ctx context.Context, req *v1.ApiTokenRequest) (*
 		Id:   token.ID,
 		Name: token.Name,
 	}, nil
-}
-
-func (s *RPCServer) StartWithdraw(ctx context.Context, req *v1.StartWithdrawRequest) (*v1.WithdrawResponse, error) {
-	span := opentracing.SpanFromContext(ctx)
-	span.SetTag("address", req.Address)
-	span.SetTag("amount", req.Amount)
-
-	if verr := s.validator.validate(req); verr != nil {
-		s.logger.Error(verr)
-		return nil, rpc.NewRpcValidationError(verr)
-	}
-
-	user, ctx, err := s.authenticate(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	account, err := s.accounts.GetByOwner(ctx, &accountsv1.AccountRequest{OwnerId: user.ID})
-	if err != nil {
-		return nil, err
-	}
-
-	if account.IsLocked {
-		s.logger.Error("account is locked")
-		return nil, rpc.ErrRpcBadRequest
-	}
-
-	famount := new(big.Float)
-	famount.SetString(req.Amount)
-	if famount == nil || famount.Cmp(big.NewFloat(0)) < 0 {
-		s.logger.Errorf("amount is negative or failed to convert: %s", req.Amount)
-		return nil, rpc.ErrRpcBadRequest
-	}
-
-	amount := new(big.Int).SetBytes([]byte(req.Amount))
-	transfer, err := s.accounts.CreateTransfer(ctx, &accountsv1.CreateTransferRequest{
-		UserId:    user.ID,
-		ToAddress: req.Address,
-		Amount:    amount.Bytes(),
-	})
-	if err != nil {
-		s.logger.WithError(err).Error("failed to create transfer")
-		return nil, rpc.ErrRpcInternal
-	}
-
-	if err = s.notifications.SendWithdrawTransfer(ctx, user, transfer); err != nil {
-		s.logger.WithError(err).Error("failed to send withdraw transfer email")
-	}
-
-	return &v1.WithdrawResponse{
-		TransferId: transfer.Id,
-	}, nil
-}
-
-func (s *RPCServer) Withdraw(ctx context.Context, req *v1.WithdrawRequest) (*protoempty.Empty, error) {
-	span := opentracing.SpanFromContext(ctx)
-	span.SetTag("id", req.TransferId)
-
-	if verr := s.validator.validate(req); verr != nil {
-		s.logger.Error(verr)
-		return nil, rpc.NewRpcValidationError(verr)
-	}
-
-	user, ctx, err := s.authenticate(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	transfer, err := s.accounts.GetTransfer(ctx, &accountsv1.TransferRequest{
-		Id: req.TransferId,
-	})
-	if err != nil {
-		return nil, rpc.ErrRpcInternal
-	}
-
-	if transfer.Pin != req.Pin {
-		s.logger.Error("failed with incorrect pin")
-		return nil, rpc.ErrRpcBadRequest
-	}
-
-	if transfer.ExpiresAt.Before(time.Now()) {
-		s.logger.Error("failed with expired transfer")
-		return nil, rpc.ErrRpcBadRequest
-	}
-
-	_, err = s.accounts.ExecuteTransfer(ctx,
-		&accountsv1.ExecuteTransferRequest{
-			Id:        transfer.Id,
-			UserId:    user.ID,
-			UserEmail: user.Email,
-		},
-	)
-	if err != nil {
-		s.logger.WithError(err).Error("failed to withdraw")
-		return nil, rpc.ErrRpcInternal
-	}
-
-	return new(protoempty.Empty), nil
 }
 
 func (s *RPCServer) createToken(ctx context.Context, user *ds.User, tokenType v1.TokenType) (string, error) {
