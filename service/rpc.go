@@ -98,14 +98,15 @@ func (s *RPCServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 	span.SetTag("email", req.Email)
 	span.SetTag("name", req.Name)
 
+	logger := s.logger.WithField("email", req.Email)
+
 	if verr := s.validator.validate(req); verr != nil {
-		s.logger.Error(verr)
+		logger.Warning(verr)
 		return nil, rpc.NewRpcValidationError(verr)
 	}
 
 	user, err := s.ds.User.Register(ctx, req.Email, req.Name, req.Password)
 	if err != nil {
-		s.logger.Error(err)
 		if err == datastore.ErrUserAlreadyExists {
 			respErr := &rpc.MultiValidationError{
 				Errors: []*rpc.ValidationError{
@@ -118,29 +119,32 @@ func (s *RPCServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 			return nil, rpc.NewRpcValidationError(respErr)
 		}
 
+		logger.Error(err)
+
 		return nil, rpc.ErrRpcInternal
 	}
 
+	logger = logger.WithField("id", user.ID)
+
 	token, err := s.createToken(ctx, user, v1.TokenTypeRegular)
 	if err != nil {
-		s.logger.Error(err)
+		logger.Errorf("failed to create token: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
 
 	if err = s.ds.User.UpdateAuthToken(ctx, user, token); err != nil {
-		s.logger.Error(err)
+		logger.Errorf("failed to update auth token: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
 
 	accReq := &accountsv1.AccountRequest{OwnerId: user.ID}
 	if err = s.eb.CreateUserAccount(span, accReq); err != nil {
-		s.logger.Errorf("failed to create account via eventbus: %s", err)
+		logger.Errorf("failed to create account via eventbus: %s", err)
 	}
 
 	confirmToken := newRecoveryToken(req.Email, 1*time.Hour, []byte(user.Password), []byte(s.authRecoverySecret))
-
 	if err = s.notifications.SendEmailConfirmation(ctx, user, confirmToken); err != nil {
-		s.logger.WithField("failed to send confirm email to user id", user.ID).Error(err)
+		logger.WithField("failed to send confirm email to user id", user.ID).Error(err)
 	}
 
 	return &v1.TokenResponse{
@@ -152,20 +156,24 @@ func (s *RPCServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.To
 	span := opentracing.SpanFromContext(ctx)
 	span.SetTag("email", req.Email)
 
+	logger := s.logger.WithField("email", req.Email)
+
 	if verr := s.validator.validate(req); verr != nil {
-		s.logger.Error(verr)
+		logger.Warning(verr)
 		return nil, rpc.NewRpcValidationError(verr)
 	}
 
 	user, err := s.ds.User.GetByEmail(ctx, req.Email)
 	if err != nil {
-		s.logger.Errorf("failed to get user: %s", err)
 		if err == datastore.ErrUserNotFound {
 			return nil, rpc.ErrRpcUnauthenticated
 		}
 
+		logger.Errorf("failed to get user: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
+
+	logger = logger.WithField("id", user.ID)
 
 	if !checkPasswordHash(ctx, req.Password, user.Password) {
 		return nil, rpc.ErrRpcUnauthenticated
@@ -173,12 +181,12 @@ func (s *RPCServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.To
 
 	token, err := s.createToken(ctx, user, v1.TokenTypeRegular)
 	if err != nil {
-		s.logger.Error(err)
+		logger.Errorf("faield to create token: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
 
 	if err = s.ds.User.UpdateAuthToken(ctx, user, token); err != nil {
-		s.logger.Error(err)
+		logger.Errorf("faield to update auth token: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
 
@@ -188,16 +196,15 @@ func (s *RPCServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.To
 }
 
 func (s *RPCServer) Logout(ctx context.Context, req *protoempty.Empty) (*protoempty.Empty, error) {
-	_ = opentracing.SpanFromContext(ctx)
-
 	user, _, err := s.authenticate(ctx)
 	if err != nil {
-		s.logger.Error(err)
 		return nil, err
 	}
 
+	logger := s.logger.WithField("id", user.ID)
+
 	if err = s.ds.User.ResetAuthToken(user); err != nil {
-		s.logger.Error(err)
+		logger.Errorf("failed to reset auth token: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
 
@@ -208,8 +215,10 @@ func (s *RPCServer) StartRecovery(ctx context.Context, req *v1.StartRecoveryUser
 	span := opentracing.SpanFromContext(ctx)
 	span.SetTag("email", req.Email)
 
+	logger := s.logger.WithField("email", req.Email)
+
 	if verr := s.validator.validate(req); verr != nil {
-		s.logger.Error(verr)
+		logger.Warning(verr)
 		return nil, rpc.NewRpcValidationError(verr)
 	}
 
@@ -219,38 +228,36 @@ func (s *RPCServer) StartRecovery(ctx context.Context, req *v1.StartRecoveryUser
 			return nil, rpc.ErrRpcBadRequest
 		}
 
-		s.logger.Errorf("failed to get user: %s", err)
+		logger.Errorf("failed to get user: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
 
 	token := newRecoveryToken(req.Email, 12*time.Hour, []byte(user.Password), []byte(s.authRecoverySecret))
-
 	if err = s.notifications.SendEmailRecovery(ctx, user, token); err != nil {
-		s.logger.WithField("failed to send recovery email to user id", user.ID).Error(err)
+		logger.WithField("failed to send recovery email to user id", user.ID).Error(err)
 	}
 
 	return &protoempty.Empty{}, nil
 }
 
 func (s *RPCServer) Recover(ctx context.Context, req *v1.RecoverUserRequest) (*protoempty.Empty, error) {
-	_ = opentracing.SpanFromContext(ctx)
-
 	if verr := s.validator.validate(req); verr != nil {
-		s.logger.Error(verr)
+		s.logger.Warning(verr)
 		return nil, rpc.NewRpcValidationError(verr)
 	}
 
 	user, err := verifyRecoveryToken(ctx, req.Token, s.ds.User.GetByEmail, []byte(s.authRecoverySecret))
 	if err != nil {
-		s.logger.Errorf("failed to get user: %s", err)
 		if err == datastore.ErrUserNotFound {
 			return nil, rpc.ErrRpcBadRequest
 		}
 
+		s.logger.Errorf("failed to get user: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
 
 	if err = s.ds.User.ResetPassword(ctx, user, req.Password); err != nil {
+		s.logger.Errorf("failed to reset password: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
 
@@ -258,43 +265,41 @@ func (s *RPCServer) Recover(ctx context.Context, req *v1.RecoverUserRequest) (*p
 }
 
 func (s *RPCServer) StartConfirmation(ctx context.Context, req *protoempty.Empty) (*protoempty.Empty, error) {
-	_ = opentracing.SpanFromContext(ctx)
-
 	user, _, err := s.authenticate(ctx)
 	if err != nil {
-		s.logger.Error(err)
 		return nil, err
 	}
 
-	confirmToken := newRecoveryToken(user.Email, 1*time.Hour, []byte(user.Password), []byte(s.authRecoverySecret))
+	logger := s.logger.WithField("id", user.ID)
 
+	confirmToken := newRecoveryToken(user.Email, 1*time.Hour, []byte(user.Password), []byte(s.authRecoverySecret))
 	if err = s.notifications.SendEmailConfirmation(ctx, user, confirmToken); err != nil {
-		s.logger.WithField("failed to send confirmation email to user id", user.ID).Error(err)
+		logger.WithField("failed to send confirmation email to user id", user.ID).Error(err)
 	}
 
 	return &protoempty.Empty{}, nil
 }
 
 func (s *RPCServer) Confirm(ctx context.Context, req *v1.ConfirmUserRequest) (*protoempty.Empty, error) {
-	_ = opentracing.SpanFromContext(ctx)
-
 	if verr := s.validator.validate(req); verr != nil {
-		s.logger.Error(verr)
+		s.logger.Warning(verr)
 		return nil, rpc.NewRpcValidationError(verr)
 	}
 
 	user, err := verifyRecoveryToken(ctx, req.Token, s.ds.User.GetByEmail, []byte(s.authRecoverySecret))
 	if err != nil {
-		s.logger.Errorf("failed to get user: %s", err)
 		if err == datastore.ErrUserNotFound {
 			return nil, rpc.ErrRpcBadRequest
 		}
 
+		s.logger.Errorf("failed to get user: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
 
+	logger := s.logger.WithField("id", user.ID)
+
 	if err := s.ds.User.Activate(user.ID); err != nil {
-		s.logger.Errorf("failed to activate user: %s", err)
+		logger.Errorf("failed to activate user: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
 
@@ -302,14 +307,15 @@ func (s *RPCServer) Confirm(ctx context.Context, req *v1.ConfirmUserRequest) (*p
 }
 
 func (s *RPCServer) ResetPassword(ctx context.Context, req *v1.ResetPasswordUserRequest) (*protoempty.Empty, error) {
-	_ = opentracing.SpanFromContext(ctx)
-
 	user, _, err := s.authenticate(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	logger := s.logger.WithField("id", user.ID)
+
 	if err = s.ds.User.ResetPassword(ctx, user, req.Password); err != nil {
+		logger.Errorf("failed to reset password: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
 
@@ -317,12 +323,12 @@ func (s *RPCServer) ResetPassword(ctx context.Context, req *v1.ResetPasswordUser
 }
 
 func (s *RPCServer) Get(ctx context.Context, req *protoempty.Empty) (*v1.UserProfile, error) {
-	_ = opentracing.SpanFromContext(ctx)
-
 	user, ctx, err := s.authenticate(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	logger := s.logger.WithField("id", user.ID)
 
 	userProfile := new(v1.UserProfile)
 	if err = copier.Copy(userProfile, user); err != nil {
@@ -331,7 +337,7 @@ func (s *RPCServer) Get(ctx context.Context, req *protoempty.Empty) (*v1.UserPro
 
 	accountProfile, err := s.accounts.GetByOwner(ctx, &accountsv1.AccountRequest{OwnerId: user.ID})
 	if err != nil {
-		s.logger.Errorf("failed to get account profile: %s", err)
+		logger.Errorf("failed to get account profile: %s", err)
 	} else {
 		userProfile.Account = accountProfile
 	}
@@ -340,16 +346,17 @@ func (s *RPCServer) Get(ctx context.Context, req *protoempty.Empty) (*v1.UserPro
 }
 
 func (s *RPCServer) GetById(ctx context.Context, req *v1.UserRequest) (*v1.UserProfile, error) { //nolint
-	_ = opentracing.SpanFromContext(ctx)
-
 	user, err := s.ds.User.Get(req.Id)
 	if err != nil {
-		s.logger.Errorf("failed to get user: %s", err)
 		if err == datastore.ErrUserNotFound {
 			return nil, rpc.ErrRpcNotFound
 		}
+
+		s.logger.Errorf("failed to get user: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
+
+	logger := s.logger.WithField("id", user.ID)
 
 	userProfile := new(v1.UserProfile)
 	if err = copier.Copy(userProfile, user); err != nil {
@@ -358,7 +365,7 @@ func (s *RPCServer) GetById(ctx context.Context, req *v1.UserRequest) (*v1.UserP
 
 	accountProfile, err := s.accounts.GetByOwner(ctx, &accountsv1.AccountRequest{OwnerId: user.ID})
 	if err != nil {
-		s.logger.Errorf("failed to get account profile: %s", err)
+		logger.Errorf("failed to get account profile: %s", err)
 	} else {
 		userProfile.Account = accountProfile
 	}
@@ -367,15 +374,16 @@ func (s *RPCServer) GetById(ctx context.Context, req *v1.UserRequest) (*v1.UserP
 }
 
 func (s *RPCServer) ListApiTokens(ctx context.Context, req *protoempty.Empty) (*v1.UserApiListResponse, error) { //nolint
-	_ = opentracing.SpanFromContext(ctx)
-
 	user, _, err := s.authenticate(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	logger := s.logger.WithField("id", user.ID)
+
 	tokens, err := s.ds.Token.ListByUser(ctx, user.ID)
 	if err != nil {
+		logger.Errorf("failed to list token by user: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
 
@@ -398,15 +406,17 @@ func (s *RPCServer) CreateApiToken(ctx context.Context, req *v1.UserApiTokenRequ
 		return nil, err
 	}
 
+	logger := s.logger.WithField("id", user.ID)
+
 	token, err := s.createToken(ctx, user, v1.TokenTypeAPI)
 	if err != nil {
-		s.logger.Errorf("failed to create api token: %s", err)
+		logger.Errorf("failed to create api token: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
 
 	apiToken, err := s.ds.Token.Create(ctx, user.ID, req.Name, token)
 	if err != nil {
-		s.logger.Errorf("failed to create api token record: %s", err)
+		logger.Errorf("failed to create api token record: %s", err)
 		return nil, rpc.ErrRpcInternal
 	}
 
