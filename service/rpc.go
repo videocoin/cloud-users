@@ -274,7 +274,10 @@ func (s *RPCServer) StartConfirmation(ctx context.Context, req *protoempty.Empty
 
 	confirmToken := newRecoveryToken(user.Email, 1*time.Hour, []byte(user.Password), []byte(s.authRecoverySecret))
 	if err = s.notifications.SendEmailConfirmation(ctx, user, confirmToken); err != nil {
-		logger.WithField("failed to send confirmation email to user id", user.ID).Error(err)
+		logger.
+			WithField("user_id", user.ID).
+			WithError(err).
+			Error("failed to send confirmation email to user")
 	}
 
 	return &protoempty.Empty{}, nil
