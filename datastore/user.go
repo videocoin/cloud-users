@@ -136,6 +136,7 @@ func (ds *UserDatastore) Register(ctx context.Context, email, name, password str
 		Password:  passwordHash,
 		IsActive:  false,
 		CreatedAt: &time,
+		Role:      v1.UserRoleMiner,
 	}
 
 	if err = tx.Create(user).Error; err != nil {
