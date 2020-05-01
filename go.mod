@@ -9,7 +9,7 @@ require (
 	github.com/go-playground/locales v0.12.1
 	github.com/go-playground/universal-translator v0.16.0
 	github.com/gogo/protobuf v1.3.1
-	github.com/golang/protobuf v1.3.2
+	github.com/golang/protobuf v1.3.3
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/jinzhu/copier v0.0.0-20180308034124-7e38e58719c3
 	github.com/jinzhu/gorm v1.9.12
@@ -21,11 +21,10 @@ require (
 	github.com/uber-go/atomic v1.4.0 // indirect
 	github.com/videocoin/cloud-api v0.2.15
 	github.com/videocoin/cloud-pkg v0.0.6
-	golang.org/x/crypto v0.0.0-20191205180655-e7c4368fe9dd
-	google.golang.org/grpc v1.21.1
+	golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073
+	google.golang.org/grpc v1.27.1
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	gopkg.in/go-playground/validator.v9 v9.29.0
-	gopkg.in/yaml.v2 v2.2.2 // indirect
 )
 
 replace github.com/videocoin/cloud-api => ../cloud-api
