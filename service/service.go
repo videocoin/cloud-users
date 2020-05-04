@@ -33,10 +33,8 @@ func NewService(cfg *Config) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	mq.Logger = cfg.Logger.WithField("system", "mq")
 
-	eblogger := cfg.Logger.WithField("system", "eventbus")
-	eb, err := NewEventBus(mq, eblogger)
+	eb, err := NewEventBus(mq)
 	if err != nil {
 		return nil, err
 	}
