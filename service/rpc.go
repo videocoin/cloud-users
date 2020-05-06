@@ -510,7 +510,7 @@ func (s *RPCServer) authenticate(ctx context.Context, allowAPI bool) (*ds.User, 
 		return nil, ctx, rpc.ErrRpcUnauthenticated
 	}
 
-	if allowAPI == false && s.getTokenType(ctx) == auth.TokenType(v1.TokenTypeAPI) {
+	if !allowAPI && s.getTokenType(ctx) == auth.TokenType(v1.TokenTypeAPI) {
 		return nil, nil, rpc.ErrRpcPermissionDenied
 	}
 
