@@ -196,7 +196,7 @@ func (s *RPCServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.To
 }
 
 func (s *RPCServer) Logout(ctx context.Context, req *protoempty.Empty) (*protoempty.Empty, error) {
-	user, _, err := s.authenticate(ctx)
+	user, _, err := s.authenticate(ctx, false)
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +265,7 @@ func (s *RPCServer) Recover(ctx context.Context, req *v1.RecoverUserRequest) (*p
 }
 
 func (s *RPCServer) StartConfirmation(ctx context.Context, req *protoempty.Empty) (*protoempty.Empty, error) {
-	user, _, err := s.authenticate(ctx)
+	user, _, err := s.authenticate(ctx, false)
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +310,7 @@ func (s *RPCServer) Confirm(ctx context.Context, req *v1.ConfirmUserRequest) (*p
 }
 
 func (s *RPCServer) ResetPassword(ctx context.Context, req *v1.ResetPasswordUserRequest) (*protoempty.Empty, error) {
-	user, _, err := s.authenticate(ctx)
+	user, _, err := s.authenticate(ctx, false)
 	if err != nil {
 		return nil, err
 	}
@@ -326,7 +326,7 @@ func (s *RPCServer) ResetPassword(ctx context.Context, req *v1.ResetPasswordUser
 }
 
 func (s *RPCServer) Get(ctx context.Context, req *protoempty.Empty) (*v1.UserProfile, error) {
-	user, ctx, err := s.authenticate(ctx)
+	user, ctx, err := s.authenticate(ctx, true)
 	if err != nil {
 		return nil, err
 	}
@@ -377,7 +377,7 @@ func (s *RPCServer) GetById(ctx context.Context, req *v1.UserRequest) (*v1.UserP
 }
 
 func (s *RPCServer) ListApiTokens(ctx context.Context, req *protoempty.Empty) (*v1.UserApiListResponse, error) { //nolint
-	user, _, err := s.authenticate(ctx)
+	user, _, err := s.authenticate(ctx, false)
 	if err != nil {
 		return nil, err
 	}
@@ -404,7 +404,7 @@ func (s *RPCServer) CreateApiToken(ctx context.Context, req *v1.UserApiTokenRequ
 	span := opentracing.SpanFromContext(ctx)
 	span.SetTag("name", req.Name)
 
-	user, ctx, err := s.authenticate(ctx)
+	user, ctx, err := s.authenticate(ctx, false)
 	if err != nil {
 		return nil, err
 	}
@@ -434,7 +434,7 @@ func (s *RPCServer) DeleteApiToken(ctx context.Context, req *v1.UserApiTokenRequ
 	span := opentracing.SpanFromContext(ctx)
 	span.SetTag("id", req.Id)
 
-	_, ctx, err := s.authenticate(ctx)
+	_, ctx, err := s.authenticate(ctx, false)
 	if err != nil {
 		return nil, err
 	}
@@ -500,7 +500,7 @@ func (s *RPCServer) createToken(ctx context.Context, user *ds.User, tokenType v1
 	return t, nil
 }
 
-func (s *RPCServer) authenticate(ctx context.Context) (*ds.User, context.Context, error) {
+func (s *RPCServer) authenticate(ctx context.Context, allowAPI bool) (*ds.User, context.Context, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "authenticate")
 	defer span.Finish()
 
@@ -510,7 +510,7 @@ func (s *RPCServer) authenticate(ctx context.Context) (*ds.User, context.Context
 		return nil, ctx, rpc.ErrRpcUnauthenticated
 	}
 
-	if s.getTokenType(ctx) == auth.TokenType(v1.TokenTypeAPI) {
+	if allowAPI == false && s.getTokenType(ctx) == auth.TokenType(v1.TokenTypeAPI) {
 		return nil, nil, rpc.ErrRpcPermissionDenied
 	}
 
