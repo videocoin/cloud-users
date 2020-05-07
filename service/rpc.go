@@ -326,23 +326,14 @@ func (s *RPCServer) ResetPassword(ctx context.Context, req *v1.ResetPasswordUser
 }
 
 func (s *RPCServer) Get(ctx context.Context, req *protoempty.Empty) (*v1.UserProfile, error) {
-	user, ctx, err := s.authenticate(ctx, true)
+	user, _, err := s.authenticate(ctx, true)
 	if err != nil {
 		return nil, err
 	}
 
-	logger := s.logger.WithField("id", user.ID)
-
 	userProfile := new(v1.UserProfile)
 	if err = copier.Copy(userProfile, user); err != nil {
 		return nil, rpc.ErrRpcInternal
-	}
-
-	accountProfile, err := s.accounts.GetByOwner(ctx, &accountsv1.AccountRequest{OwnerId: user.ID})
-	if err != nil {
-		logger.Errorf("failed to get account profile: %s", err)
-	} else {
-		userProfile.Account = accountProfile
 	}
 
 	return userProfile, nil
@@ -359,18 +350,9 @@ func (s *RPCServer) GetById(ctx context.Context, req *v1.UserRequest) (*v1.UserP
 		return nil, rpc.ErrRpcInternal
 	}
 
-	logger := s.logger.WithField("id", user.ID)
-
 	userProfile := new(v1.UserProfile)
 	if err = copier.Copy(userProfile, user); err != nil {
 		return nil, rpc.ErrRpcInternal
-	}
-
-	accountProfile, err := s.accounts.GetByOwner(ctx, &accountsv1.AccountRequest{OwnerId: user.ID})
-	if err != nil {
-		logger.Errorf("failed to get account profile: %s", err)
-	} else {
-		userProfile.Account = accountProfile
 	}
 
 	return userProfile, nil
