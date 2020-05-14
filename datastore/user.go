@@ -25,15 +25,23 @@ type UserDatastore struct {
 }
 
 type User struct {
-	ID          string      `gorm:"type:varchar(36);PRIMARY_KEY"`
-	Email       string      `gorm:"type:varchar(255);unique_index;DEFAULT:null"`
-	Password    string      `gorm:"type:varchar(100);DEFAULT:null"`
-	Name        string      `gorm:"type:varchar(100);DEFAULT:null"`
-	Role        v1.UserRole `gorm:"type:int(11);DEFAULT:null"`
-	IsActive    bool        `gorm:"Column:is_active;type:tinyint(1);DEFAULT:null"`
-	ActivatedAt *time.Time  `gorm:"type:timestamp NULL;DEFAULT:null"`
-	CreatedAt   *time.Time  `gorm:"type:timestamp NULL;DEFAULT:null"`
-	Token       string      `gorm:"type:varchar(255);DEFAULT:null"`
+	ID          string        `gorm:"type:varchar(36);PRIMARY_KEY"`
+	Email       string        `gorm:"type:varchar(255);unique_index;DEFAULT:null"`
+	Password    string        `gorm:"type:varchar(100);DEFAULT:null"`
+	FirstName   string        `gorm:"type:varchar(100);DEFAULT:null"`
+	LastName    string        `gorm:"type:varchar(100);DEFAULT:null"`
+	Country     string        `gorm:"type:varchar(100);DEFAULT:null"`
+	Region      string        `gorm:"type:varchar(100);DEFAULT:null"`
+	City        string        `gorm:"type:varchar(100);DEFAULT:null"`
+	Zip         string        `gorm:"type:varchar(100);DEFAULT:null"`
+	Address1    string        `gorm:"type:varchar(100);DEFAULT:null"`
+	Address2    string        `gorm:"type:varchar(100);DEFAULT:null"`
+	Role        v1.UserRole   `gorm:"type:int(11);DEFAULT:null"`
+	UIRole      v1.UserUIRole `gorm:"type:int(11);DEFAULT:null"`
+	IsActive    bool          `gorm:"Column:is_active;type:tinyint(1);DEFAULT:null"`
+	ActivatedAt *time.Time    `gorm:"type:timestamp NULL;DEFAULT:null"`
+	CreatedAt   *time.Time    `gorm:"type:timestamp NULL;DEFAULT:null"`
+	Token       string        `gorm:"type:varchar(255);DEFAULT:null"`
 }
 
 func NewUserDatastore(db *gorm.DB) (*UserDatastore, error) {
@@ -95,12 +103,30 @@ func (ds *UserDatastore) GetByVerificationCode(code string) (*User, error) {
 	return user, nil
 }
 
-func (ds *UserDatastore) Register(ctx context.Context, email, name, password string) (*User, error) {
+func (ds *UserDatastore) Validate(ctx context.Context, email string) error {
+	span, _ := opentracing.StartSpanFromContext(ctx, "Validate")
+	defer span.Finish()
+
+	span.SetTag("email", email)
+
+	tx := ds.db.Begin()
+
+	user := &User{}
+	err := tx.Where("email = ?", email).First(user).Error
+	if err == nil {
+		tx.Rollback()
+		return ErrUserAlreadyExists
+	}
+
+	return nil
+}
+
+func (ds *UserDatastore) Register(ctx context.Context, uiRole v1.UserUIRole, email, password, firstName, lastName,
+	country, region, city, zip, address1, address2 string) (*User, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Register")
 	defer span.Finish()
 
 	span.SetTag("email", email)
-	span.SetTag("name", name)
 
 	tx := ds.db.Begin()
 
@@ -132,11 +158,19 @@ func (ds *UserDatastore) Register(ctx context.Context, email, name, password str
 	user = &User{
 		ID:        id,
 		Email:     email,
-		Name:      name,
+		FirstName: firstName,
+		LastName:  lastName,
+		Country:   country,
+		Region:    region,
+		City:      city,
+		Zip:       zip,
+		Address1:  address1,
+		Address2:  address2,
 		Password:  passwordHash,
 		IsActive:  false,
 		CreatedAt: &time,
 		Role:      v1.UserRoleMiner,
+		UIRole:    uiRole,
 	}
 
 	if err = tx.Create(user).Error; err != nil {
@@ -221,6 +255,18 @@ func (ds *UserDatastore) Activate(userID string) error {
 	}
 
 	if err = ds.db.Model(user).Updates(updates).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ds *UserDatastore) UpdateUIRole(ctx context.Context, user *User, uiRole v1.UserUIRole) error {
+	updates := map[string]interface{}{
+		"ui_role": uiRole,
+	}
+
+	if err := ds.db.Model(user).Updates(updates).Error; err != nil {
 		return err
 	}
 

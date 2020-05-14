@@ -93,10 +93,9 @@ func (s *RPCServer) Start() error {
 	return s.grpc.Serve(s.listen)
 }
 
-func (s *RPCServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.TokenResponse, error) {
+func (s *RPCServer) Validate(ctx context.Context, req *v1.ValidateUserRequest) (*protoempty.Empty, error) {
 	span := opentracing.SpanFromContext(ctx)
 	span.SetTag("email", req.Email)
-	span.SetTag("name", req.Name)
 
 	logger := s.logger.WithField("email", req.Email)
 
@@ -105,7 +104,41 @@ func (s *RPCServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 		return nil, rpc.NewRpcValidationError(verr)
 	}
 
-	user, err := s.ds.User.Register(ctx, req.Email, req.Name, req.Password)
+	err := s.ds.User.Validate(ctx, req.Email)
+	if err != nil {
+		if err == datastore.ErrUserAlreadyExists {
+			respErr := &rpc.MultiValidationError{
+				Errors: []*rpc.ValidationError{
+					{
+						Field:   "email",
+						Message: "Email is already registered",
+					},
+				},
+			}
+			return nil, rpc.NewRpcValidationError(respErr)
+		}
+
+		logger.Error(err)
+
+		return nil, rpc.ErrRpcInternal
+	}
+
+	return new(protoempty.Empty), nil
+}
+
+func (s *RPCServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.TokenResponse, error) {
+	span := opentracing.SpanFromContext(ctx)
+	span.SetTag("email", req.Email)
+
+	logger := s.logger.WithField("email", req.Email)
+
+	if verr := s.validator.validate(req); verr != nil {
+		logger.Warning(verr)
+		return nil, rpc.NewRpcValidationError(verr)
+	}
+
+	user, err := s.ds.User.Register(ctx, req.UiRole, req.Email, req.Password, req.FirstName, req.LastName, req.Country,
+		req.Region, req.City, req.Zip, req.Address_1, req.Address_2)
 	if err != nil {
 		if err == datastore.ErrUserAlreadyExists {
 			respErr := &rpc.MultiValidationError{
@@ -150,6 +183,27 @@ func (s *RPCServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 	return &v1.TokenResponse{
 		Token: token,
 	}, nil
+}
+
+func (s *RPCServer) Update(ctx context.Context, req *v1.UpdateUserRequest) (*v1.UserProfile, error) {
+	user, _, err := s.authenticate(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+
+	logger := s.logger.WithField("id", user.ID)
+
+	if err = s.ds.User.UpdateUIRole(ctx, user, req.UiRole); err != nil {
+		logger.Errorf("failed to update user: %s", err)
+		return nil, rpc.ErrRpcInternal
+	}
+
+	userProfile := new(v1.UserProfile)
+	if err = copier.Copy(userProfile, user); err != nil {
+		return nil, rpc.ErrRpcInternal
+	}
+
+	return userProfile, nil
 }
 
 func (s *RPCServer) Login(ctx context.Context, req *v1.LoginUserRequest) (*v1.TokenResponse, error) {
