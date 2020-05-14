@@ -49,7 +49,7 @@ func (c *NotificationClient) SendEmailWelcome(ctx context.Context, user *ds.User
 
 	params := map[string]string{
 		"to":   user.Email,
-		"name": user.Name,
+		"name": user.FirstName + " " + user.LastName,
 	}
 
 	notification := &notificationv1.Notification{
