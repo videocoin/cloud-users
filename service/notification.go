@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 	notificationv1 "github.com/videocoin/cloud-api/notifications/v1"
@@ -26,11 +25,8 @@ func (c *NotificationClient) SendEmailWaitlisted(ctx context.Context, user *ds.U
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendEmailWaitlisted")
 	defer span.Finish()
 
-	md := metautils.ExtractIncoming(ctx)
-
 	params := map[string]string{
-		"to":     user.Email,
-		"domain": md.Get("x-forwarded-host"),
+		"to": user.Email,
 	}
 
 	notification := &notificationv1.Notification{
@@ -51,12 +47,9 @@ func (c *NotificationClient) SendEmailWelcome(ctx context.Context, user *ds.User
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendEmailWelcome")
 	defer span.Finish()
 
-	md := metautils.ExtractIncoming(ctx)
-
 	params := map[string]string{
-		"to":     user.Email,
-		"name":   user.Name,
-		"domain": md.Get("x-forwarded-host"),
+		"to":   user.Email,
+		"name": user.Name,
 	}
 
 	notification := &notificationv1.Notification{
@@ -77,12 +70,9 @@ func (c *NotificationClient) SendEmailRecovery(ctx context.Context, user *ds.Use
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendEmailRecovery")
 	defer span.Finish()
 
-	md := metautils.ExtractIncoming(ctx)
-
 	params := map[string]string{
-		"to":     user.Email,
-		"token":  token,
-		"domain": md.Get("x-forwarded-host"),
+		"to":    user.Email,
+		"token": token,
 	}
 
 	notification := &notificationv1.Notification{
@@ -103,12 +93,9 @@ func (c *NotificationClient) SendEmailConfirmation(ctx context.Context, user *ds
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendEmailConfirmation")
 	defer span.Finish()
 
-	md := metautils.ExtractIncoming(ctx)
-
 	params := map[string]string{
-		"to":     user.Email,
-		"token":  token,
-		"domain": md.Get("x-forwarded-host"),
+		"to":    user.Email,
+		"token": token,
 	}
 
 	notification := &notificationv1.Notification{
