@@ -137,8 +137,7 @@ func (s *RPCServer) Create(ctx context.Context, req *v1.CreateUserRequest) (*v1.
 		return nil, rpc.NewRpcValidationError(verr)
 	}
 
-	user, err := s.ds.User.Register(ctx, req.UiRole, req.Email, req.Password, req.FirstName, req.LastName, req.Country,
-		req.Region, req.City, req.Zip, req.Address_1, req.Address_2)
+	user, err := s.ds.User.Register(ctx, req)
 	if err != nil {
 		if err == datastore.ErrUserAlreadyExists {
 			respErr := &rpc.MultiValidationError{
