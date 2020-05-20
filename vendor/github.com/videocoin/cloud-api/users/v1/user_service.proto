@@ -19,7 +19,7 @@ option (gogoproto.messagename_all) = true;
 service UserService {
     rpc Validate(ValidateUserRequest) returns (google.protobuf.Empty) {
         option (google.api.http) = {
-            post: "/api/v1/users",
+            post: "/api/v1/users/validate",
             body: "*"
         };
 	}
@@ -183,7 +183,8 @@ message CreateUserRequest {
 }
 
 message UpdateUserRequest {
-    UserUIRole ui_role = 1;
+    string id = 1;
+    UserUIRole ui_role = 2;
 }
 
 message LoginUserRequest {

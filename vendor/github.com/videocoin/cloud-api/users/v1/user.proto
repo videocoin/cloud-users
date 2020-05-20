@@ -39,9 +39,9 @@ enum UserUIRole {
     option (gogoproto.goproto_enum_prefix) = false;
     option (gogoproto.enum_customname) = "UserUIRole";
 
-    USER_ROLE_UI_BOTH   = 0 [(gogoproto.enumvalue_customname) = "UserUIRoleBoth"];
+    USER_ROLE_UI_BOTH      = 0 [(gogoproto.enumvalue_customname) = "UserUIRoleBoth"];
     USER_ROLE_UI_MINER     = 1 [(gogoproto.enumvalue_customname) = "UserUIRoleMiner"];
-    USER_ROLE_UI_PUBLISHER = 3 [(gogoproto.enumvalue_customname) = "UserUIRolePublisher"];
+    USER_ROLE_UI_PUBLISHER = 2 [(gogoproto.enumvalue_customname) = "UserUIRolePublisher"];
 }
 
 message UserProfile {
