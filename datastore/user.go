@@ -121,17 +121,16 @@ func (ds *UserDatastore) Validate(ctx context.Context, email string) error {
 	return nil
 }
 
-func (ds *UserDatastore) Register(ctx context.Context, uiRole v1.UserUIRole, email, password, firstName, lastName,
-	country, region, city, zip, address1, address2 string) (*User, error) {
+func (ds *UserDatastore) Register(ctx context.Context, req *v1.CreateUserRequest) (*User, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Register")
 	defer span.Finish()
 
-	span.SetTag("email", email)
+	span.SetTag("email", req.Email)
 
 	tx := ds.db.Begin()
 
 	user := &User{}
-	err := tx.Where("email = ?", email).First(user).Error
+	err := tx.Where("email = ?", req.Email).First(user).Error
 	if err == nil {
 		tx.Rollback()
 		return nil, ErrUserAlreadyExists
@@ -148,7 +147,7 @@ func (ds *UserDatastore) Register(ctx context.Context, uiRole v1.UserUIRole, ema
 		return nil, err
 	}
 
-	passwordHash, _ := hashPassword(ctx, password)
+	passwordHash, _ := hashPassword(ctx, req.Password)
 	time, err := ptypes.Timestamp(ptypes.TimestampNow())
 	if err != nil {
 		tx.Rollback()
@@ -157,20 +156,20 @@ func (ds *UserDatastore) Register(ctx context.Context, uiRole v1.UserUIRole, ema
 
 	user = &User{
 		ID:        id,
-		Email:     email,
-		FirstName: firstName,
-		LastName:  lastName,
-		Country:   country,
-		Region:    region,
-		City:      city,
-		Zip:       zip,
-		Address1:  address1,
-		Address2:  address2,
+		Email:     req.Email,
+		FirstName: req.FirstName,
+		LastName:  req.LastName,
+		Country:   req.Country,
+		Region:    req.Region,
+		City:      req.City,
+		Zip:       req.Zip,
+		Address1:  req.Address_1,
+		Address2:  req.Address_2,
 		Password:  passwordHash,
 		IsActive:  false,
 		CreatedAt: &time,
 		Role:      v1.UserRoleMiner,
-		UIRole:    uiRole,
+		UIRole:    req.UiRole,
 	}
 
 	if err = tx.Create(user).Error; err != nil {
