@@ -25,23 +25,23 @@ type UserDatastore struct {
 }
 
 type User struct {
-	ID          string        `gorm:"type:varchar(36);PRIMARY_KEY"`
-	Email       string        `gorm:"type:varchar(255);unique_index;DEFAULT:null"`
-	Password    string        `gorm:"type:varchar(100);DEFAULT:null"`
-	FirstName   string        `gorm:"type:varchar(100);DEFAULT:null"`
-	LastName    string        `gorm:"type:varchar(100);DEFAULT:null"`
-	Country     string        `gorm:"type:varchar(100);DEFAULT:null"`
-	Region      string        `gorm:"type:varchar(100);DEFAULT:null"`
-	City        string        `gorm:"type:varchar(100);DEFAULT:null"`
-	Zip         string        `gorm:"type:varchar(100);DEFAULT:null"`
-	Address1    string        `gorm:"type:varchar(100);DEFAULT:null"`
-	Address2    string        `gorm:"type:varchar(100);DEFAULT:null"`
-	Role        v1.UserRole   `gorm:"type:int(11);DEFAULT:null"`
-	UIRole      v1.UserUIRole `gorm:"type:int(11);DEFAULT:null"`
-	IsActive    bool          `gorm:"Column:is_active;type:tinyint(1);DEFAULT:null"`
-	ActivatedAt *time.Time    `gorm:"type:timestamp NULL;DEFAULT:null"`
-	CreatedAt   *time.Time    `gorm:"type:timestamp NULL;DEFAULT:null"`
-	Token       string        `gorm:"type:varchar(255);DEFAULT:null"`
+	ID          string
+	Email       string
+	Password    string
+	FirstName   string
+	LastName    string
+	Country     string
+	Region      string
+	City        string
+	Zip         string
+	Address1    string `gorm:"Column:address_1"`
+	Address2    string `gorm:"Column:address_2"`
+	Role        v1.UserRole
+	UIRole      v1.UserUIRole `gorm:"Column:uirole"`
+	IsActive    bool          `gorm:"Column:is_active"`
+	ActivatedAt *time.Time
+	CreatedAt   *time.Time
+	Token       string
 }
 
 func NewUserDatastore(db *gorm.DB) (*UserDatastore, error) {
