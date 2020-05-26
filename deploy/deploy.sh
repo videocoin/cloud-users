@@ -65,6 +65,7 @@ function deploy() {
         --kube-context "${KUBE_CONTEXT}" \
         --install \
         --set image.repository="gcr.io/${GCP_PROJECT}/${CHART_NAME}" \
+        --set image.tag="${VERSION}" \
         --set replicasCount="${REPLICAS_COUNT}" \
         --set config.accountsRpcAddr="${ACCOUNTS_RPC_ADDR}" \
         --set secrets.dbUri="${DB_URI}" \
