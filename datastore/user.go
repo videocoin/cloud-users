@@ -37,7 +37,7 @@ type User struct {
 	Address1    string `gorm:"Column:address_1"`
 	Address2    string `gorm:"Column:address_2"`
 	Role        v1.UserRole
-	UIRole      v1.UserUIRole `gorm:"Column:uirole"`
+	UiRole      v1.UserUIRole `gorm:"Column:uirole"`  //nolint
 	IsActive    bool          `gorm:"Column:is_active"`
 	ActivatedAt *time.Time
 	CreatedAt   *time.Time
@@ -169,7 +169,7 @@ func (ds *UserDatastore) Register(ctx context.Context, req *v1.CreateUserRequest
 		IsActive:  false,
 		CreatedAt: &time,
 		Role:      v1.UserRoleMiner,
-		UIRole:    req.UiRole,
+		UiRole:    req.UiRole,
 	}
 
 	if err = tx.Create(user).Error; err != nil {
@@ -262,7 +262,7 @@ func (ds *UserDatastore) Activate(userID string) error {
 
 func (ds *UserDatastore) UpdateUIRole(ctx context.Context, user *User, uiRole v1.UserUIRole) error {
 	updates := map[string]interface{}{
-		"ui_role": uiRole,
+		"uirole": uiRole,
 	}
 
 	if err := ds.db.Model(user).Updates(updates).Error; err != nil {
