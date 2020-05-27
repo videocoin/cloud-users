@@ -37,7 +37,7 @@ type User struct {
 	Address1    string `gorm:"Column:address_1"`
 	Address2    string `gorm:"Column:address_2"`
 	Role        v1.UserRole
-	UiRole      v1.UserUIRole `gorm:"Column:uirole"`  //nolint
+	UIRole      v1.UserUIRole `gorm:"Column:uirole"`
 	IsActive    bool          `gorm:"Column:is_active"`
 	ActivatedAt *time.Time
 	CreatedAt   *time.Time
@@ -169,7 +169,7 @@ func (ds *UserDatastore) Register(ctx context.Context, req *v1.CreateUserRequest
 		IsActive:  false,
 		CreatedAt: &time,
 		Role:      v1.UserRoleMiner,
-		UiRole:    req.UiRole,
+		UIRole:    req.UiRole,
 	}
 
 	if err = tx.Create(user).Error; err != nil {
