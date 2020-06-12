@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	clientv1 "github.com/videocoin/cloud-api/client/v1"
 	"github.com/videocoin/cloud-users/datastore"
@@ -10,9 +11,9 @@ import (
 )
 
 type Service struct {
-	cfg *Config
+	cfg    *Config
 	server *rpc.Server
-	eb  *eventbus.EventBus
+	eb     *eventbus.EventBus
 }
 
 func NewService(ctx context.Context, cfg *Config) (*Service, error) {
@@ -27,9 +28,9 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 	}
 
 	eb, err := eventbus.New(&eventbus.Config{
-		URI:     cfg.MQURI,
-		Name:    cfg.Name,
-		Logger:  ctxlogrus.Extract(ctx).WithField("system", "eventbus"),
+		URI:    cfg.MQURI,
+		Name:   cfg.Name,
+		Logger: ctxlogrus.Extract(ctx).WithField("system", "eventbus"),
 	})
 	if err != nil {
 		return nil, err
@@ -51,9 +52,9 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 	}
 
 	svc := &Service{
-		cfg: cfg,
+		cfg:    cfg,
 		server: server,
-		eb:  eb,
+		eb:     eb,
 	}
 
 	return svc, nil
