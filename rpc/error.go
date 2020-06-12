@@ -1,4 +1,4 @@
-package service
+package rpc
 
 import (
 	"google.golang.org/grpc/codes"

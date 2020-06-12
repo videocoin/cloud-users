@@ -1,27 +1,28 @@
-package service
+package notification
 
 import (
 	"context"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
-	notificationv1 "github.com/videocoin/cloud-api/notifications/v1"
+	v1 "github.com/videocoin/cloud-api/notifications/v1"
 	ds "github.com/videocoin/cloud-users/datastore"
+	"github.com/videocoin/cloud-users/eventbus"
 )
 
-type NotificationClient struct {
-	eb     *EventBus
+type Client struct {
+	eb     *eventbus.EventBus
 	logger *logrus.Entry
 }
 
-func NewNotificationClient(eb *EventBus, logger *logrus.Entry) (*NotificationClient, error) {
-	return &NotificationClient{
+func NewClient(eb *eventbus.EventBus, logger *logrus.Entry) (*Client, error) {
+	return &Client{
 		eb:     eb,
 		logger: logger,
 	}, nil
 }
 
-func (c *NotificationClient) SendEmailWaitlisted(ctx context.Context, user *ds.User) error {
+func (c *Client) SendEmailWaitlisted(ctx context.Context, user *ds.User) error {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendEmailWaitlisted")
 	defer span.Finish()
 
@@ -29,8 +30,8 @@ func (c *NotificationClient) SendEmailWaitlisted(ctx context.Context, user *ds.U
 		"to": user.Email,
 	}
 
-	notification := &notificationv1.Notification{
-		Target:   notificationv1.NotificationTarget_EMAIL,
+	notification := &v1.Notification{
+		Target:   v1.NotificationTarget_EMAIL,
 		Template: "user_waitlisted",
 		Params:   params,
 	}
@@ -43,7 +44,7 @@ func (c *NotificationClient) SendEmailWaitlisted(ctx context.Context, user *ds.U
 	return nil
 }
 
-func (c *NotificationClient) SendEmailWelcome(ctx context.Context, user *ds.User) error {
+func (c *Client) SendEmailWelcome(ctx context.Context, user *ds.User) error {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendEmailWelcome")
 	defer span.Finish()
 
@@ -52,8 +53,8 @@ func (c *NotificationClient) SendEmailWelcome(ctx context.Context, user *ds.User
 		"name": user.FirstName + " " + user.LastName,
 	}
 
-	notification := &notificationv1.Notification{
-		Target:   notificationv1.NotificationTarget_EMAIL,
+	notification := &v1.Notification{
+		Target:   v1.NotificationTarget_EMAIL,
 		Template: "user_welcome",
 		Params:   params,
 	}
@@ -66,7 +67,7 @@ func (c *NotificationClient) SendEmailWelcome(ctx context.Context, user *ds.User
 	return nil
 }
 
-func (c *NotificationClient) SendEmailRecovery(ctx context.Context, user *ds.User, token string) error {
+func (c *Client) SendEmailRecovery(ctx context.Context, user *ds.User, token string) error {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendEmailRecovery")
 	defer span.Finish()
 
@@ -75,8 +76,8 @@ func (c *NotificationClient) SendEmailRecovery(ctx context.Context, user *ds.Use
 		"token": token,
 	}
 
-	notification := &notificationv1.Notification{
-		Target:   notificationv1.NotificationTarget_EMAIL,
+	notification := &v1.Notification{
+		Target:   v1.NotificationTarget_EMAIL,
 		Template: "user_recovery",
 		Params:   params,
 	}
@@ -89,7 +90,7 @@ func (c *NotificationClient) SendEmailRecovery(ctx context.Context, user *ds.Use
 	return nil
 }
 
-func (c *NotificationClient) SendEmailConfirmation(ctx context.Context, user *ds.User, token string) error {
+func (c *Client) SendEmailConfirmation(ctx context.Context, user *ds.User, token string) error {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendEmailConfirmation")
 	defer span.Finish()
 
@@ -98,8 +99,8 @@ func (c *NotificationClient) SendEmailConfirmation(ctx context.Context, user *ds
 		"token": token,
 	}
 
-	notification := &notificationv1.Notification{
-		Target:   notificationv1.NotificationTarget_EMAIL,
+	notification := &v1.Notification{
+		Target:   v1.NotificationTarget_EMAIL,
 		Template: "user_confirmation",
 		Params:   params,
 	}

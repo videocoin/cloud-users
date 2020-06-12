@@ -1,8 +1,9 @@
-package service
+package eventbus
 
 import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	accountsv1 "github.com/videocoin/cloud-api/accounts/v1"
 	notificationv1 "github.com/videocoin/cloud-api/notifications/v1"
@@ -11,11 +12,24 @@ import (
 
 type EventBus struct {
 	mq *mqmux.WorkerMux
+	logger              *logrus.Entry
 }
 
-func NewEventBus(mq *mqmux.WorkerMux) (*EventBus, error) {
+type Config struct {
+	Logger  *logrus.Entry
+	URI     string
+	Name    string
+}
+
+func New(c *Config) (*EventBus, error) {
+	mq, err := mqmux.NewWorkerMux(c.URI, c.Name)
+	if err != nil {
+		return nil, err
+	}
+
 	return &EventBus{
-		mq: mq,
+		logger:  c.Logger,
+		mq:      mq,
 	}, nil
 }
 
