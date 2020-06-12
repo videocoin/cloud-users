@@ -5,20 +5,21 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
+	"github.com/videocoin/cloud-pkg/mqmux"
+
 	accountsv1 "github.com/videocoin/cloud-api/accounts/v1"
 	notificationv1 "github.com/videocoin/cloud-api/notifications/v1"
-	"github.com/videocoin/cloud-pkg/mqmux"
 )
 
 type EventBus struct {
-	mq *mqmux.WorkerMux
-	logger              *logrus.Entry
+	mq     *mqmux.WorkerMux
+	logger *logrus.Entry
 }
 
 type Config struct {
-	Logger  *logrus.Entry
-	URI     string
-	Name    string
+	Logger *logrus.Entry
+	URI    string
+	Name   string
 }
 
 func New(c *Config) (*EventBus, error) {
@@ -28,19 +29,17 @@ func New(c *Config) (*EventBus, error) {
 	}
 
 	return &EventBus{
-		logger:  c.Logger,
-		mq:      mq,
+		logger: c.Logger,
+		mq:     mq,
 	}, nil
 }
 
 func (e *EventBus) Start() error {
-	err := e.registerPublishers()
-	if err != nil {
+	if err := e.registerPublishers(); err != nil {
 		return err
 	}
 
-	err = e.registerConsumers()
-	if err != nil {
+	if err := e.registerConsumers(); err != nil {
 		return err
 	}
 
@@ -72,12 +71,11 @@ func (e *EventBus) CreateUserAccount(span opentracing.Span, req *accountsv1.Acco
 	ext.SpanKindRPCServer.Set(span)
 	ext.Component.Set(span, "users")
 
-	err := span.Tracer().Inject(
+	if err := span.Tracer().Inject(
 		span.Context(),
 		opentracing.TextMap,
 		mqmux.RMQHeaderCarrier(headers),
-	)
-	if err != nil {
+	); err != nil {
 		return err
 	}
 
@@ -89,13 +87,13 @@ func (e *EventBus) SendNotification(span opentracing.Span, req *notificationv1.N
 	ext.SpanKindRPCServer.Set(span)
 	ext.Component.Set(span, "users")
 
-	err := span.Tracer().Inject(
+	if err := span.Tracer().Inject(
 		span.Context(),
 		opentracing.TextMap,
 		mqmux.RMQHeaderCarrier(headers),
-	)
-	if err != nil {
+	); err != nil {
 		return err
 	}
+
 	return e.mq.PublishX("notifications.send", req, headers)
 }
