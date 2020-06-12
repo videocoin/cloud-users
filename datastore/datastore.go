@@ -10,7 +10,7 @@ type Datastore struct {
 	Token *TokenDatastore
 }
 
-func NewDatastore(uri string) (*Datastore, error) {
+func New(uri string) (*Datastore, error) {
 	ds := new(Datastore)
 
 	db, err := gorm.Open("mysql", uri)

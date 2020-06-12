@@ -124,9 +124,19 @@ github.com/uber/jaeger-client-go/utils
 github.com/uber/jaeger-lib/metrics
 # github.com/videocoin/cloud-api v0.2.15 => ../cloud-api
 github.com/videocoin/cloud-api/accounts/v1
+github.com/videocoin/cloud-api/billing/private/v1
+github.com/videocoin/cloud-api/billing/v1
+github.com/videocoin/cloud-api/client/v1
+github.com/videocoin/cloud-api/dispatcher/v1
+github.com/videocoin/cloud-api/emitter/v1
+github.com/videocoin/cloud-api/miners/v1
 github.com/videocoin/cloud-api/notifications/v1
+github.com/videocoin/cloud-api/profiles/v1
 github.com/videocoin/cloud-api/rpc
+github.com/videocoin/cloud-api/streams/private/v1
+github.com/videocoin/cloud-api/streams/v1
 github.com/videocoin/cloud-api/users/v1
+github.com/videocoin/cloud-api/validator/v1
 # github.com/videocoin/cloud-pkg v0.0.6 => ../cloud-pkg
 github.com/videocoin/cloud-pkg/auth
 github.com/videocoin/cloud-pkg/dbutil

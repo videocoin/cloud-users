@@ -1,62 +1,58 @@
 package service
 
 import (
-	accountsv1 "github.com/videocoin/cloud-api/accounts/v1"
-	"github.com/videocoin/cloud-pkg/grpcutil"
-	"github.com/videocoin/cloud-pkg/mqmux"
+	"context"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
+	clientv1 "github.com/videocoin/cloud-api/client/v1"
 	"github.com/videocoin/cloud-users/datastore"
-	"google.golang.org/grpc"
+	"github.com/videocoin/cloud-users/eventbus"
+	"github.com/videocoin/cloud-users/rpc"
 )
 
 type Service struct {
 	cfg *Config
-	rpc *RPCServer
-	eb  *EventBus
+	server *rpc.Server
+	eb  *eventbus.EventBus
 }
 
-func NewService(cfg *Config) (*Service, error) {
-	ds, err := datastore.NewDatastore(cfg.DBURI)
+func NewService(ctx context.Context, cfg *Config) (*Service, error) {
+	ds, err := datastore.New(cfg.DBURI)
 	if err != nil {
 		return nil, err
 	}
 
-	alogger := cfg.Logger.WithField("system", "accountcli")
-	aGrpcDialOpts := grpcutil.ClientDialOptsWithRetry(alogger)
-	accountsConn, err := grpc.Dial(cfg.AccountsRPCAddr, aGrpcDialOpts...)
+	sc, err := clientv1.NewServiceClientFromEnvconfig(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	accounts := accountsv1.NewAccountServiceClient(accountsConn)
-
-	mq, err := mqmux.NewWorkerMux(cfg.MQURI, cfg.Name)
+	eb, err := eventbus.New(&eventbus.Config{
+		URI:     cfg.MQURI,
+		Name:    cfg.Name,
+		Logger:  ctxlogrus.Extract(ctx).WithField("system", "eventbus"),
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	eb, err := NewEventBus(mq)
-	if err != nil {
-		return nil, err
-	}
-
-	rpcConfig := &RPCServerOptions{
+	rpcConfig := &rpc.ServerOptions{
 		Addr:               cfg.RPCAddr,
 		AuthTokenSecret:    cfg.AuthTokenSecret,
 		AuthRecoverySecret: cfg.AuthRecoverySecret,
 		Logger:             cfg.Logger,
 		DS:                 ds,
 		EB:                 eb,
-		Accounts:           accounts,
+		Accounts:           sc.Accounts,
 	}
 
-	rpc, err := NewRPCServer(rpcConfig)
+	server, err := rpc.NewServer(rpcConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	svc := &Service{
 		cfg: cfg,
-		rpc: rpc,
+		server: server,
 		eb:  eb,
 	}
 
@@ -65,7 +61,7 @@ func NewService(cfg *Config) (*Service, error) {
 
 func (s *Service) Start(errCh chan error) {
 	go func() {
-		errCh <- s.rpc.Start()
+		errCh <- s.server.Start()
 	}()
 
 	go func() {
