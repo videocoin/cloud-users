@@ -29,8 +29,8 @@ resources:
     cpu: 300m
     memory: 256Mi
   requests:
-    cpu: 300m
-    memory: 256Mi
+    cpu: 100m
+    memory: 64Mi
 
 annotations:
   vault.hashicorp.com/agent-inject: "true"
